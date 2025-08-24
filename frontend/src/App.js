@@ -16,14 +16,15 @@ function App() {
   const [error, setError] = useState(null);
   const [showRules, setShowRules] = useState(false);
 
-  const createGame = async (playerNames, numAiPlayers = 0) => {
+  const createGame = async (playerNames, numAiPlayers = 0, aiDifficulties = []) => {
     setLoading(true);
     setError(null);
     
     try {
       const response = await axios.post(`${API_BASE_URL}/games`, {
         player_names: playerNames,
-        num_ai_players: numAiPlayers
+        num_ai_players: numAiPlayers,
+        ai_difficulties: aiDifficulties
       });
       
       setGameState(response.data);

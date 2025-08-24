@@ -20,6 +20,12 @@ class PlayerAction(Enum):
     DISCARD = "discard"
     KNOCK = "knock"
 
+class AIDifficulty(Enum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+    EXPERT = "expert"
+
 @dataclass
 class Card:
     value: str
@@ -50,6 +56,7 @@ class Player:
     hand: List[Card] = field(default_factory=list)
     lives: int = 3
     is_ai: bool = False
+    ai_difficulty: Optional[AIDifficulty] = None
     has_knocked: bool = False
     is_eliminated: bool = False
     
@@ -141,7 +148,7 @@ def deal_initial_cards(game_state: GameState) -> None:
     if game_state.deck:
         game_state.discard_pile = [game_state.deck.pop()]
 
-def create_new_game(player_names: List[str], num_ai_players: int = 0) -> GameState:
+def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficulties: Optional[List[AIDifficulty]] = None) -> GameState:
     """Create a new game with the specified players"""
     game_id = str(uuid.uuid4())
     game_state = GameState(game_id=game_id)
@@ -151,13 +158,18 @@ def create_new_game(player_names: List[str], num_ai_players: int = 0) -> GameSta
         player_id = f"player_{i+1}"
         game_state.players[player_id] = Player(id=player_id, name=name)
     
-    # Add AI players
+    # Add AI players with difficulties
+    if ai_difficulties is None:
+        ai_difficulties = [AIDifficulty.MEDIUM] * num_ai_players
+    
     for i in range(num_ai_players):
         player_id = f"ai_{i+1}"
+        difficulty = ai_difficulties[i] if i < len(ai_difficulties) else AIDifficulty.MEDIUM
         game_state.players[player_id] = Player(
             id=player_id, 
-            name=f"AI Player {i+1}", 
-            is_ai=True
+            name=f"AI Player {i+1} ({difficulty.value.title()})", 
+            is_ai=True,
+            ai_difficulty=difficulty
         )
     
     # Initialize deck and deal cards
@@ -205,10 +217,26 @@ def draw_card(game_state: GameState, player_id: str, from_discard: bool = False)
         card = game_state.discard_pile.pop(0)
         player.hand.append(card)
         return True
-    elif not from_discard and game_state.deck:
-        card = game_state.deck.pop()
-        player.hand.append(card)
-        return True
+    elif not from_discard:
+        # Check if deck is empty
+        if not game_state.deck:
+            # Reshuffle discard pile into deck (keeping top card)
+            if len(game_state.discard_pile) > 1:
+                top_card = game_state.discard_pile.pop(0)  # Keep top card
+                cards_to_shuffle = game_state.discard_pile[:]  # Copy remaining cards
+                game_state.discard_pile = [top_card]  # Reset discard pile with just top card
+                
+                # Shuffle and create new deck
+                shuffle_deck(cards_to_shuffle)
+                game_state.deck = cards_to_shuffle
+            else:
+                # No cards available to draw
+                return False
+        
+        if game_state.deck:
+            card = game_state.deck.pop()
+            player.hand.append(card)
+            return True
     
     return False
 

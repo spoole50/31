@@ -219,6 +219,44 @@ body {
   font-size: 1rem;
 }
 
+.ai-difficulties {
+  margin-top: 1rem;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #28a745;
+}
+
+.ai-difficulties h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.ai-difficulty-input {
+  margin-bottom: 0.8rem;
+}
+
+.ai-difficulty-input label {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-weight: 500;
+}
+
+.ai-difficulty-input select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  min-width: 250px;
+  background: white;
+}
+
+.ai-difficulty-input:last-child {
+  margin-bottom: 0;
+}
+
 .game-summary {
   background: #f8f9fa;
   padding: 1rem;

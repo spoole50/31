@@ -4,6 +4,7 @@ import RulesModal from './RulesModal';
 function GameSetup({ onCreateGame, error }) {
   const [playerNames, setPlayerNames] = useState(['Player 1']);
   const [numAiPlayers, setNumAiPlayers] = useState(1);
+  const [aiDifficulties, setAiDifficulties] = useState(['medium']);
   const [showRules, setShowRules] = useState(false);
 
   const addPlayer = () => {
@@ -25,6 +26,25 @@ function GameSetup({ onCreateGame, error }) {
     setPlayerNames(newNames);
   };
 
+  const updateAiDifficulty = (index, difficulty) => {
+    const newDifficulties = [...aiDifficulties];
+    newDifficulties[index] = difficulty;
+    setAiDifficulties(newDifficulties);
+  };
+
+  const handleNumAiPlayersChange = (newNum) => {
+    setNumAiPlayers(newNum);
+    // Adjust difficulties array to match
+    const newDifficulties = [...aiDifficulties];
+    while (newDifficulties.length < newNum) {
+      newDifficulties.push('medium');
+    }
+    while (newDifficulties.length > newNum) {
+      newDifficulties.pop();
+    }
+    setAiDifficulties(newDifficulties);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -42,7 +62,7 @@ function GameSetup({ onCreateGame, error }) {
       return;
     }
 
-    onCreateGame(validNames, numAiPlayers);
+    onCreateGame(validNames, numAiPlayers, aiDifficulties);
   };
 
   return (
@@ -98,7 +118,7 @@ function GameSetup({ onCreateGame, error }) {
                 Number of AI players:
                 <select
                   value={numAiPlayers}
-                  onChange={(e) => setNumAiPlayers(parseInt(e.target.value))}
+                  onChange={(e) => handleNumAiPlayersChange(parseInt(e.target.value))}
                 >
                   {[0, 1, 2, 3, 4, 5, 6, 7].map(num => (
                     <option key={num} value={num}>{num}</option>
@@ -106,6 +126,28 @@ function GameSetup({ onCreateGame, error }) {
                 </select>
               </label>
             </div>
+            
+            {numAiPlayers > 0 && (
+              <div className="ai-difficulties">
+                <h4>AI Difficulty Levels</h4>
+                {Array.from({ length: numAiPlayers }, (_, index) => (
+                  <div key={index} className="ai-difficulty-input">
+                    <label>
+                      AI Player {index + 1}:
+                      <select
+                        value={aiDifficulties[index] || 'medium'}
+                        onChange={(e) => updateAiDifficulty(index, e.target.value)}
+                      >
+                        <option value="easy">Easy 😊 - Makes some mistakes</option>
+                        <option value="medium">Medium 🤔 - Balanced strategy</option>
+                        <option value="hard">Hard 😠 - Smart and competitive</option>
+                        <option value="expert">Expert 🤖 - Very challenging</option>
+                      </select>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="section">
