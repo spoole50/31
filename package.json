@@ -10,7 +10,7 @@
     "install": "npm install --prefix frontend && pip install -r backend/requirements.txt",
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "start:frontend": "cd frontend && npm start",
-    "start:backend": "cd backend && uvicorn main:app --reload",
+    "start:backend": "cd backend && python main.py",
     "build": "cd frontend && npm run build",
     "test": "cd frontend && npm test"
   },
