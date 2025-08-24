@@ -258,7 +258,7 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
             for other_player in game_state.players.values():
                 if other_player.id != player_id:
                     other_player.lose_life()
-            end_round(game_state)
+            end_round(game_state, skip_life_loss=True)  # Skip additional life loss
             return True
         
         # Move to next player
@@ -290,7 +290,7 @@ def knock(game_state: GameState, player_id: str) -> bool:
     
     return True
 
-def end_round(game_state: GameState) -> None:
+def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
     """End the current round and determine who loses lives"""
     # Calculate scores for all active players
     player_scores = {}
@@ -301,13 +301,15 @@ def end_round(game_state: GameState) -> None:
     if not player_scores:
         return
     
-    # Find the lowest score(s)
-    min_score = min(player_scores.values())
-    losers = [pid for pid, score in player_scores.items() if score == min_score]
-    
-    # Players with lowest score lose a life
-    for player_id in losers:
-        game_state.players[player_id].lose_life()
+    # Only apply life loss for lowest scores if not skipping (i.e., not a 31-point win)
+    if not skip_life_loss:
+        # Find the lowest score(s)
+        min_score = min(player_scores.values())
+        losers = [pid for pid, score in player_scores.items() if score == min_score]
+        
+        # Players with lowest score lose a life
+        for player_id in losers:
+            game_state.players[player_id].lose_life()
     
     # Check if game is over
     active_players = game_state.get_active_players()
