@@ -6,7 +6,8 @@ function PlayerHand({
   isCurrentPlayer, 
   isActivePlayer, 
   canInteract, 
-  onDiscardCard 
+  onDiscardCard,
+  gamePhase 
 }) {
   const getPlayerStatusClass = () => {
     if (player.is_eliminated) return 'eliminated';
@@ -40,10 +41,17 @@ function PlayerHand({
             {isCurrentPlayer && <span className="you-badge">YOU</span>}
           </h3>
           <div className="player-stats">
-            <div className="score">
-              Score: <strong>{player.score}</strong>
-              {player.score === 31 && <span className="perfect-score">★</span>}
-            </div>
+            {/* Only show score to current player, or if game is finished/player eliminated */}
+            {(isCurrentPlayer || player.is_eliminated || gamePhase === 'finished') ? (
+              <div className="score">
+                Score: <strong>{player.score}</strong>
+                {player.score === 31 && <span className="perfect-score">★</span>}
+              </div>
+            ) : (
+              <div className="score-hidden">
+                Score: <strong>???</strong>
+              </div>
+            )}
             <div className="lives">
               Lives: {getLifeIndicators()}
             </div>
@@ -64,8 +72,8 @@ function PlayerHand({
       </div>
 
       <div className="cards-container">
-        {/* Show cards for current player, hide for others unless eliminated or game over */}
-        {(isCurrentPlayer || player.is_eliminated) ? (
+        {/* Show cards for current player, or when game is finished, or if player is eliminated */}
+        {(isCurrentPlayer || player.is_eliminated || gamePhase === 'finished') ? (
           <div className="cards">
             {player.hand.map((card, index) => (
               <Card

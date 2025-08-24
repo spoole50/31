@@ -7,7 +7,9 @@ function GameActions({
   onDrawCard, 
   onKnock, 
   gamePhase, 
-  isCurrentPlayerTurn 
+  isCurrentPlayerTurn,
+  currentTurnPlayer,
+  gameState 
 }) {
   return (
     <div className="game-actions">
@@ -34,21 +36,32 @@ function GameActions({
       </div>
 
       <div className="action-status">
-        {!isCurrentPlayerTurn && (
+        {!isCurrentPlayerTurn && currentTurnPlayer && (
           <div className="waiting-message">
-            Waiting for other player's turn...
+            {currentTurnPlayer.is_ai ? (
+              <div>
+                🤖 <strong>{currentTurnPlayer.name}</strong> (AI) is thinking...
+              </div>
+            ) : (
+              <div>
+                👤 <strong>{currentTurnPlayer.name}</strong>'s turn
+                <div className="player-switch-hint">
+                  Switch to {currentTurnPlayer.name} in the player selector above
+                </div>
+              </div>
+            )}
           </div>
         )}
         
         {isCurrentPlayerTurn && canDrawCard && (
           <div className="instruction">
-            Your turn: Draw a card
+            🎯 Your turn: Draw a card
           </div>
         )}
         
         {isCurrentPlayerTurn && canDiscardCard && (
           <div className="instruction">
-            Your turn: Discard a card
+            🎯 Your turn: Discard a card
           </div>
         )}
         

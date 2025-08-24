@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import axios from 'axios';
 import GameBoard from './components/GameBoard';
 import GameSetup from './components/GameSetup';
+import RulesModal from './components/RulesModal';
 import './App.css';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -13,6 +14,7 @@ function App() {
   const [currentPlayerId, setCurrentPlayerId] = useState('player_1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showRules, setShowRules] = useState(false);
 
   const createGame = async (playerNames, numAiPlayers = 0) => {
     setLoading(true);
@@ -80,13 +82,20 @@ function App() {
     if (!gameState?.game_id) return;
     
     const currentPlayer = gameState.players[gameState.current_player_id];
+    
+    // Auto-switch to the current turn's human player
+    if (currentPlayer && !currentPlayer.is_ai && currentPlayerId !== gameState.current_player_id) {
+      setCurrentPlayerId(gameState.current_player_id);
+    }
+    
+    // Handle AI turns
     if (currentPlayer && currentPlayer.is_ai && gameState.phase !== 'finished') {
       const timer = setTimeout(() => {
         playAITurn(gameState.game_id);
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [gameState]);
+  }, [gameState, currentPlayerId]);
 
   const drawCard = async (fromDiscard = false) => {
     if (!gameState?.game_id) return;
@@ -225,24 +234,35 @@ function App() {
               </span>
             )}
           </div>
-          <div className="player-selector">
-            <label>
-              Playing as: 
-              <select 
-                value={currentPlayerId} 
-                onChange={(e) => setCurrentPlayerId(e.target.value)}
+          <div className="header-controls">
+            <div className="player-selector">
+              <label>
+                Playing as: 
+                <select 
+                  value={currentPlayerId} 
+                  onChange={(e) => setCurrentPlayerId(e.target.value)}
+                >
+                  {Object.entries(gameState.players)
+                    .filter(([id, player]) => !player.is_ai)
+                    .map(([id, player]) => (
+                      <option key={id} value={id}>{player.name}</option>
+                    ))}
+                </select>
+              </label>
+            </div>
+            <div className="header-buttons">
+              <button 
+                onClick={() => setShowRules(true)} 
+                className="btn btn-secondary btn-small"
+                title="View game rules"
               >
-                {Object.entries(gameState.players)
-                  .filter(([id, player]) => !player.is_ai)
-                  .map(([id, player]) => (
-                    <option key={id} value={id}>{player.name}</option>
-                  ))}
-              </select>
-            </label>
+                📖 Rules
+              </button>
+              <button onClick={resetGame} className="btn btn-secondary">
+                New Game
+              </button>
+            </div>
           </div>
-          <button onClick={resetGame} className="btn btn-secondary">
-            New Game
-          </button>
         </div>
 
         {error && (
@@ -262,6 +282,11 @@ function App() {
           canDrawCard={canDrawCard()}
           canDiscardCard={canDiscardCard()}
           canKnock={canKnock()}
+        />
+        
+        <RulesModal 
+          isOpen={showRules} 
+          onClose={() => setShowRules(false)} 
         />
       </div>
     </DndProvider>

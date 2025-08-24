@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import RulesModal from './RulesModal';
 
 function GameSetup({ onCreateGame, error }) {
   const [playerNames, setPlayerNames] = useState(['Player 1']);
   const [numAiPlayers, setNumAiPlayers] = useState(1);
+  const [showRules, setShowRules] = useState(false);
 
   const addPlayer = () => {
     if (playerNames.length < 8) {
@@ -115,27 +117,41 @@ function GameSetup({ onCreateGame, error }) {
           </div>
 
           <div className="section">
-            <button 
-              type="submit" 
-              className="btn btn-primary btn-large"
-              disabled={playerNames.length + numAiPlayers < 2 || playerNames.length + numAiPlayers > 8}
-            >
-              Start Game
-            </button>
+            <div className="setup-buttons">
+              <button 
+                type="submit" 
+                className="btn btn-primary btn-large"
+                disabled={playerNames.length + numAiPlayers < 2 || playerNames.length + numAiPlayers > 8}
+              >
+                Start Game
+              </button>
+              <button 
+                type="button"
+                onClick={() => setShowRules(true)}
+                className="btn btn-secondary"
+              >
+                📖 View Full Rules
+              </button>
+            </div>
           </div>
         </form>
 
         <div className="rules-summary">
-          <h3>Game Rules Summary</h3>
+          <h3>Quick Rules Summary</h3>
           <ul>
             <li>Goal: Get the highest total value in the same suit</li>
             <li>Perfect score: 31 points (automatic win)</li>
-            <li>Three Aces also count as 31</li>
+            <li>Three of a kind also counts as 30 points</li>
             <li>Each player starts with 3 lives</li>
             <li>Lowest score each round loses a life</li>
             <li>Last player standing wins!</li>
           </ul>
         </div>
+        
+        <RulesModal 
+          isOpen={showRules} 
+          onClose={() => setShowRules(false)} 
+        />
       </div>
     </div>
   );

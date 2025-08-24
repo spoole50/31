@@ -66,6 +66,7 @@ function GameBoard({
             isActivePlayer={playerId === gameState.current_player_id}
             canInteract={playerId === currentPlayerId && isCurrentPlayerTurn}
             onDiscardCard={onDiscardCard}
+            gamePhase={gameState.phase}
           />
         ))}
       </div>
@@ -88,6 +89,8 @@ function GameBoard({
           onKnock={onKnock}
           gamePhase={gameState.phase}
           isCurrentPlayerTurn={isCurrentPlayerTurn}
+          currentTurnPlayer={gameState.players[gameState.current_player_id]}
+          gameState={gameState}
         />
       </div>
 
