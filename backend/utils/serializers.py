@@ -37,5 +37,6 @@ def game_state_to_dict(game_state: GameState) -> Dict[str, Any]:
         "discard_pile": [card.to_dict() for card in game_state.discard_pile],
         "deck_size": len(game_state.deck),
         "round_number": game_state.round_number,
-        "winner_id": game_state.winner_id if game_state.winner_id else None
+        "winner_id": game_state.winner_id if game_state.winner_id else None,
+        "recent_message": game_state.recent_message
     }

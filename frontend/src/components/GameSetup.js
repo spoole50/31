@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import RulesModal from './RulesModal';
 
-function GameSetup({ onCreateGame, error }) {
+function GameSetup({ onCreateGame, error, onBack }) {
   const [playerNames, setPlayerNames] = useState(['Player 1']);
   const [numAiPlayers, setNumAiPlayers] = useState(1);
   const [aiDifficulties, setAiDifficulties] = useState(['medium']);
@@ -114,9 +114,10 @@ function GameSetup({ onCreateGame, error }) {
           <div className="section">
             <h3>AI Players</h3>
             <div className="ai-players-input">
-              <label>
-                Number of AI players:
+              <div className="form-group">
+                <label htmlFor="numAiPlayers">Number of AI players:</label>
                 <select
+                  id="numAiPlayers"
                   value={numAiPlayers}
                   onChange={(e) => handleNumAiPlayersChange(parseInt(e.target.value))}
                 >
@@ -124,7 +125,7 @@ function GameSetup({ onCreateGame, error }) {
                     <option key={num} value={num}>{num}</option>
                   ))}
                 </select>
-              </label>
+              </div>
             </div>
             
             {numAiPlayers > 0 && (
@@ -132,9 +133,10 @@ function GameSetup({ onCreateGame, error }) {
                 <h4>AI Difficulty Levels</h4>
                 {Array.from({ length: numAiPlayers }, (_, index) => (
                   <div key={index} className="ai-difficulty-input">
-                    <label>
-                      AI Player {index + 1}:
+                    <div className="form-group">
+                      <label htmlFor={`aiDifficulty${index}`}>AI Player {index + 1}:</label>
                       <select
+                        id={`aiDifficulty${index}`}
                         value={aiDifficulties[index] || 'medium'}
                         onChange={(e) => updateAiDifficulty(index, e.target.value)}
                       >
@@ -143,7 +145,7 @@ function GameSetup({ onCreateGame, error }) {
                         <option value="hard">Hard 😠 - Smart and competitive</option>
                         <option value="expert">Expert 🤖 - Very challenging</option>
                       </select>
-                    </label>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -174,6 +176,15 @@ function GameSetup({ onCreateGame, error }) {
               >
                 📖 View Full Rules
               </button>
+              {onBack && (
+                <button 
+                  type="button"
+                  onClick={onBack}
+                  className="btn btn-secondary"
+                >
+                  ← Back to Menu
+                </button>
+              )}
             </div>
           </div>
         </form>

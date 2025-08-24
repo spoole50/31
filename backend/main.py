@@ -9,6 +9,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from api.routes import game_routes
+from api.table_routes import table_routes
 
 
 def create_app():
@@ -20,6 +21,7 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(game_routes)
+    app.register_blueprint(table_routes)
     
     return app
 

@@ -11,8 +11,8 @@ function PlayerHand({
 }) {
   const getPlayerStatusClass = () => {
     if (player.is_eliminated) return 'eliminated';
-    if (isActivePlayer) return 'active-player';
     if (isCurrentPlayer) return 'current-player';
+    if (isActivePlayer) return 'active-player';
     return '';
   };
 
@@ -90,7 +90,7 @@ function PlayerHand({
         ) : (
           <div className="cards cards-hidden">
             {player.hand.map((_, index) => (
-              <div key={index} className="card card-back">
+              <div key={index} className="game-card card-back">
                 <div className="card-back-design">🂠</div>
               </div>
             ))}

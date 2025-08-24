@@ -1,0 +1,214 @@
+/* Player Hand Components */
+
+/* Base Player Hand */
+.player-hand {
+  background: var(--bg-panel);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: var(--text-light);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  transition: all var(--transition-slow);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Player Hand States */
+.player-hand.current-player {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.player-hand.active-player {
+  border-color: var(--success-color);
+  box-shadow: 0 0 20px rgba(40, 167, 69, 0.3);
+}
+
+.player-hand.eliminated {
+  opacity: 0.6;
+  filter: grayscale(50%);
+}
+
+.player-hand:not(.current-player) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Player Info */
+.player-info {
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--spacing-sm) 0.75rem;
+  background: rgba(248, 249, 250, 0.8);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  min-height: 40px;
+  overflow: hidden;
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.player-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+}
+
+/* Player Badges */
+.ai-badge,
+.you-badge {
+  background: var(--secondary-color);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: normal;
+  flex-shrink: 0;
+}
+
+.you-badge {
+  background: var(--primary-color);
+}
+
+/* Player Stats */
+.player-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  text-align: right;
+  flex-shrink: 0;
+  font-size: var(--font-size-md);
+}
+
+.score {
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  white-space: nowrap;
+}
+
+.score-hidden {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.perfect-score {
+  color: var(--warning-color);
+  margin-left: var(--spacing-sm);
+}
+
+/* Lives Display */
+.lives {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.life-indicator {
+  font-size: var(--font-size-md);
+}
+
+.life-indicator.alive {
+  color: var(--danger-color);
+}
+
+.life-indicator.lost {
+  color: var(--border-light);
+}
+
+/* Player Status Indicators */
+.knocked-indicator,
+.eliminated-indicator {
+  text-align: center;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-weight: bold;
+  margin-top: var(--spacing-sm);
+}
+
+.knocked-indicator {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.eliminated-indicator {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Other Players Summary */
+.other-players-summary {
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.player-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.lives-indicator {
+  display: inline-flex;
+  margin-left: 0.2rem;
+}
+
+.life-heart {
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+}
+
+.life-heart.lost {
+  color: #bdc3c7;
+}
+
+/* Compact Player Names */
+.player-hand:not(.current-player) .player-info {
+  margin-bottom: var(--spacing-sm);
+}
+
+.player-hand:not(.current-player) .player-name {
+  font-size: var(--font-size-md);
+}
+
+/* Responsive Player Layout */
+@media (max-width: 768px) {
+  .player-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .player-stats {
+    text-align: left;
+    margin-top: var(--spacing-sm);
+  }
+}

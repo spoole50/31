@@ -29,12 +29,9 @@ function GameBoard({
   const canDiscardCard = currentPlayer && currentPlayer.hand.length === 4 && isCurrentPlayerTurn;
   const canKnock = currentPlayer && currentPlayer.hand.length === 3 && isCurrentPlayerTurn && !currentPlayer.has_knocked;
 
-  // Sort players to show current player first
-  const sortedPlayers = Object.entries(gameState.players).sort(([idA], [idB]) => {
-    if (idA === currentPlayerId) return -1;
-    if (idB === currentPlayerId) return 1;
-    return 0;
-  });
+  // Separate current player from others
+  const currentPlayerEntry = Object.entries(gameState.players).find(([id]) => id === currentPlayerId);
+  const otherPlayers = Object.entries(gameState.players).filter(([id]) => id !== currentPlayerId);
 
   return (
     <div className="game-board">
@@ -47,6 +44,27 @@ function GameBoard({
           )}
         </div>
         
+        {/* Other Players - Condensed single line */}
+        {otherPlayers.length > 0 && (
+          <div className="other-players-summary">
+            <strong>Other Players: </strong>
+            {otherPlayers.map(([playerId, player], index) => (
+              <span key={playerId} className="player-summary">
+                {player.name}
+                <span className="lives-indicator">
+                  {Array.from({ length: player.lives }, (_, i) => (
+                    <span key={i} className="life-heart">♥</span>
+                  ))}
+                  {Array.from({ length: 3 - player.lives }, (_, i) => (
+                    <span key={i} className="life-heart lost">♡</span>
+                  ))}
+                </span>
+                {index < otherPlayers.length - 1 && ' • '}
+              </span>
+            ))}
+          </div>
+        )}
+        
         <div className="deck-info">
           <div className="deck-remaining">
             <strong>Cards in Deck:</strong> {gameState.deck_size}
@@ -57,41 +75,55 @@ function GameBoard({
         </div>
       </div>
 
+      {/* Game Messages */}
+      {gameState.recent_message && (
+        <div className="game-message">
+          <div className="message-content">
+            {gameState.recent_message}
+          </div>
+        </div>
+      )}
+
       <div className="players-section">
-        {sortedPlayers.map(([playerId, player]) => (
-          <PlayerHand
-            key={playerId}
-            player={player}
-            isCurrentPlayer={playerId === currentPlayerId}
-            isActivePlayer={playerId === gameState.current_player_id}
-            canInteract={playerId === currentPlayerId && isCurrentPlayerTurn}
-            onDiscardCard={onDiscardCard}
-            gamePhase={gameState.phase}
-          />
-        ))}
-      </div>
+        {/* Main Game Area - Current Player + Controls */}
+        {currentPlayerEntry && (
+          <div className="main-game-area">
+            <div className="current-player-section">
+              <PlayerHand
+                key={currentPlayerEntry[0]}
+                player={currentPlayerEntry[1]}
+                isCurrentPlayer={true}
+                isActivePlayer={currentPlayerEntry[0] === gameState.current_player_id}
+                canInteract={currentPlayerEntry[0] === currentPlayerId && isCurrentPlayerTurn}
+                onDiscardCard={onDiscardCard}
+                gamePhase={gameState.phase}
+              />
+            </div>
 
-      <div className="game-center">
-        <DiscardPile
-          cards={gameState.discard_pile}
-          canDrop={canDiscardCard}
-          dropRef={drop}
-          isOver={isOver}
-          onDrawFromDiscard={() => onDrawCard(true)}
-          canDrawFromDiscard={canDrawCard}
-        />
+            <div className="game-controls-section">
+              <DiscardPile
+                cards={gameState.discard_pile}
+                canDrop={canDiscardCard}
+                dropRef={drop}
+                isOver={isOver}
+                onDrawFromDiscard={() => onDrawCard(true)}
+                canDrawFromDiscard={canDrawCard}
+              />
 
-        <GameActions
-          canDrawCard={canDrawCard}
-          canDiscardCard={canDiscardCard}
-          canKnock={canKnock}
-          onDrawCard={() => onDrawCard(false)}
-          onKnock={onKnock}
-          gamePhase={gameState.phase}
-          isCurrentPlayerTurn={isCurrentPlayerTurn}
-          currentTurnPlayer={gameState.players[gameState.current_player_id]}
-          gameState={gameState}
-        />
+              <GameActions
+                canDrawCard={canDrawCard}
+                canDiscardCard={canDiscardCard}
+                canKnock={canKnock}
+                onDrawCard={() => onDrawCard(false)}
+                onKnock={onKnock}
+                gamePhase={gameState.phase}
+                isCurrentPlayerTurn={isCurrentPlayerTurn}
+                currentTurnPlayer={gameState.players[gameState.current_player_id]}
+                gameState={gameState}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {gameState.winner_id && (

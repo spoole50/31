@@ -2,21 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import axios from 'axios';
+import MainMenu from './components/MainMenu';
 import GameBoard from './components/GameBoard';
 import GameSetup from './components/GameSetup';
 import RulesModal from './components/RulesModal';
-import './App.css';
+import TableLobby from './components/TableLobby';
+import TableGameBoard from './components/TableGameBoard';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+// App states
+const APP_STATES = {
+  MAIN_MENU: 'main_menu',
+  LOCAL_SETUP: 'local_setup',
+  LOCAL_GAME: 'local_game',
+  ONLINE_LOBBY: 'online_lobby',
+  ONLINE_GAME: 'online_game'
+};
+
 function App() {
+  const [appState, setAppState] = useState(APP_STATES.MAIN_MENU);
   const [gameState, setGameState] = useState(null);
   const [currentPlayerId, setCurrentPlayerId] = useState('player_1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showRules, setShowRules] = useState(false);
+  
+  // Online multiplayer state
+  const [playerId, setPlayerId] = useState(null);
+  const [playerName, setPlayerName] = useState('');
+  const [currentTableId, setCurrentTableId] = useState(null);
 
-  const createGame = async (playerNames, numAiPlayers = 0, aiDifficulties = []) => {
+  const createLocalGame = async (playerNames, numAiPlayers = 0, aiDifficulties = []) => {
     setLoading(true);
     setError(null);
     
@@ -35,6 +52,8 @@ function App() {
       } else {
         setCurrentPlayerId(Object.keys(response.data.players)[0]);
       }
+      
+      setAppState(APP_STATES.LOCAL_GAME);
     } catch (err) {
       setError('Failed to create game: ' + (err.response?.data?.detail || err.message));
     } finally {
@@ -42,7 +61,7 @@ function App() {
     }
   };
 
-  const refreshGameState = async () => {
+  const refreshLocalGameState = async () => {
     if (!gameState?.game_id) return;
     
     try {
@@ -78,9 +97,9 @@ function App() {
     }
   };
 
-  // Auto-refresh game state and handle AI turns
+  // Auto-refresh local game state and handle AI turns
   useEffect(() => {
-    if (!gameState?.game_id) return;
+    if (appState !== APP_STATES.LOCAL_GAME || !gameState?.game_id) return;
     
     const currentPlayer = gameState.players[gameState.current_player_id];
     
@@ -96,7 +115,7 @@ function App() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [gameState, currentPlayerId]);
+  }, [gameState, currentPlayerId, appState]);
 
   const drawCard = async (fromDiscard = false) => {
     if (!gameState?.game_id) return;
@@ -145,23 +164,43 @@ function App() {
     }
   };
 
-  const resetGame = () => {
+  // Navigation functions
+  const goToMainMenu = () => {
+    setAppState(APP_STATES.MAIN_MENU);
     setGameState(null);
     setCurrentPlayerId('player_1');
     setError(null);
+    setPlayerId(null);
+    setPlayerName('');
+    setCurrentTableId(null);
   };
 
-  if (loading) {
-    return (
-      <div className="app">
-        <div className="loading">
-          <h2>Loading...</h2>
-        </div>
-      </div>
-    );
-  }
+  const goToLocalSetup = () => {
+    setAppState(APP_STATES.LOCAL_SETUP);
+    setError(null);
+  };
 
-  // Helper functions to determine if actions are allowed
+  const goToOnlineLobby = (id, name) => {
+    setPlayerId(id);
+    setPlayerName(name);
+    setAppState(APP_STATES.ONLINE_LOBBY);
+    setError(null);
+  };
+
+  const handleTableGameStart = (tableId, gameStateData) => {
+    setCurrentTableId(tableId);
+    setGameState(gameStateData);
+    setAppState(APP_STATES.ONLINE_GAME);
+  };
+
+  const handleGameEnd = (tableData) => {
+    // Game ended, go back to lobby
+    setAppState(APP_STATES.ONLINE_LOBBY);
+    setCurrentTableId(null);
+    setGameState(null);
+  };
+
+  // Helper functions to determine if actions are allowed (for local games)
   const canDrawCard = () => {
     if (!gameState || !currentPlayerId) return false;
     
@@ -210,88 +249,151 @@ function App() {
     return currentPlayer.hand.length === 3 && !currentPlayer.has_knocked;
   };
 
-  if (!gameState) {
+  if (loading) {
     return (
       <div className="app">
-        <div className="header">
-          <h1>31 Card Game</h1>
+        <div className="loading">
+          <h2>Loading...</h2>
         </div>
-        <GameSetup onCreateGame={createGame} error={error} />
       </div>
     );
   }
 
-  return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="app">
-        <div className="header">
-          <h1>31 Card Game</h1>
-          <div className="game-info">
-            <span>Round: {gameState.round_number}</span>
-            <span>Phase: {gameState.phase}</span>
-            {gameState.winner_id && (
-              <span className="winner">
-                Winner: {gameState.players[gameState.winner_id]?.name}
-              </span>
-            )}
-          </div>
-          <div className="header-controls">
-            <div className="player-selector">
-              <label>
-                Playing as: 
-                <select 
-                  value={currentPlayerId} 
-                  onChange={(e) => setCurrentPlayerId(e.target.value)}
-                >
-                  {Object.entries(gameState.players)
-                    .filter(([id, player]) => !player.is_ai)
-                    .map(([id, player]) => (
-                      <option key={id} value={id}>{player.name}</option>
-                    ))}
-                </select>
-              </label>
-            </div>
-            <div className="header-buttons">
-              <button 
-                onClick={() => setShowRules(true)} 
-                className="btn btn-secondary btn-small"
-                title="View game rules"
-              >
-                📖 Rules
-              </button>
-              <button onClick={resetGame} className="btn btn-secondary">
-                New Game
-              </button>
-            </div>
-          </div>
+  // Render different components based on app state
+  switch (appState) {
+    case APP_STATES.MAIN_MENU:
+      return (
+        <div className="app">
+          <MainMenu
+            onLocalGame={goToLocalSetup}
+            onOnlineGame={goToOnlineLobby}
+            onShowRules={() => setShowRules(true)}
+          />
+          <RulesModal 
+            isOpen={showRules} 
+            onClose={() => setShowRules(false)} 
+          />
         </div>
+      );
 
-        {error && (
-          <div className="error-message">
-            {error}
-            <button onClick={() => setError(null)}>×</button>
+    case APP_STATES.LOCAL_SETUP:
+      return (
+        <div className="app">
+          <div className="header">
+            <h1>31 - Local Game</h1>
           </div>
-        )}
+          <GameSetup 
+            onCreateGame={createLocalGame} 
+            error={error} 
+            onBack={goToMainMenu}
+          />
+          <RulesModal 
+            isOpen={showRules} 
+            onClose={() => setShowRules(false)} 
+          />
+        </div>
+      );
 
-        <GameBoard
-          gameState={gameState}
-          currentPlayerId={currentPlayerId}
-          onDrawCard={drawCard}
-          onDiscardCard={discardCard}
-          onKnock={knockGame}
-          onRefresh={refreshGameState}
-          canDrawCard={canDrawCard()}
-          canDiscardCard={canDiscardCard()}
-          canKnock={canKnock()}
-        />
-        
-        <RulesModal 
-          isOpen={showRules} 
-          onClose={() => setShowRules(false)} 
-        />
-      </div>
-    </DndProvider>
-  );
+    case APP_STATES.LOCAL_GAME:
+      return (
+        <DndProvider backend={HTML5Backend}>
+          <div className="app">
+            <div className="header">
+              <h1>31</h1>
+              <div className="game-info">
+                <span>Round: {gameState.round_number}</span>
+                <span>Phase: {gameState.phase}</span>
+                {gameState.winner_id && (
+                  <span className="winner">
+                    Winner: {gameState.players[gameState.winner_id]?.name}
+                  </span>
+                )}
+              </div>
+              <div className="header-controls">
+                <div className="header-buttons">
+                  <button 
+                    onClick={() => setShowRules(true)} 
+                    className="btn btn-secondary btn-small"
+                    title="View game rules"
+                  >
+                    📖 Rules
+                  </button>
+                  <button onClick={goToMainMenu} className="btn btn-secondary">
+                    Main Menu
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="error-message">
+                {error}
+                <button onClick={() => setError(null)}>×</button>
+              </div>
+            )}
+
+            <GameBoard
+              gameState={gameState}
+              currentPlayerId={currentPlayerId}
+              onDrawCard={drawCard}
+              onDiscardCard={discardCard}
+              onKnock={knockGame}
+              onRefresh={refreshLocalGameState}
+              canDrawCard={canDrawCard()}
+              canDiscardCard={canDiscardCard()}
+              canKnock={canKnock()}
+            />
+            
+            <RulesModal 
+              isOpen={showRules} 
+              onClose={() => setShowRules(false)} 
+            />
+          </div>
+        </DndProvider>
+      );
+
+    case APP_STATES.ONLINE_LOBBY:
+      return (
+        <div className="app">
+          <TableLobby
+            playerId={playerId}
+            playerName={playerName}
+            onGameStart={handleTableGameStart}
+            onBackToMenu={goToMainMenu}
+          />
+          <RulesModal 
+            isOpen={showRules} 
+            onClose={() => setShowRules(false)} 
+          />
+        </div>
+      );
+
+    case APP_STATES.ONLINE_GAME:
+      return (
+        <DndProvider backend={HTML5Backend}>
+          <div className="app">
+            <TableGameBoard
+              tableId={currentTableId}
+              playerId={playerId}
+              playerName={playerName}
+              onBackToLobby={() => setAppState(APP_STATES.ONLINE_LOBBY)}
+              onGameEnd={handleGameEnd}
+            />
+            <RulesModal 
+              isOpen={showRules} 
+              onClose={() => setShowRules(false)} 
+            />
+          </div>
+        </DndProvider>
+      );
+
+    default:
+      return (
+        <div className="app">
+          <div className="error">Unknown app state</div>
+        </div>
+      );
+  }
 }
 
 export default App;

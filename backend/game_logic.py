@@ -101,6 +101,7 @@ class GameState:
     final_round_started: bool = False
     knocked_player_id: str = ""
     winner_id: str = ""
+    recent_message: str = ""  # For broadcasting game events
     
     def is_game_over(self) -> bool:
         """Check if the game is over"""
@@ -254,6 +255,8 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
         # Check for automatic win (31 points)
         score, _ = player.calculate_best_score()
         if score == 31:
+            # Set message for instant win
+            game_state.recent_message = f"{player.name} got 31 points! Instant win!"
             # Everyone else loses a life
             for other_player in game_state.players.values():
                 if other_player.id != player_id:
@@ -274,6 +277,11 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
     
     return False
 
+def clear_recent_message(game_state: GameState) -> None:
+    """Clear the recent message after it's been displayed"""
+    game_state.recent_message = ""
+
+
 def knock(game_state: GameState, player_id: str) -> bool:
     """Player knocks, starting the final round"""
     if not can_player_act(game_state, player_id, PlayerAction.KNOCK):
@@ -284,6 +292,9 @@ def knock(game_state: GameState, player_id: str) -> bool:
     game_state.knocked_player_id = player_id
     game_state.phase = GamePhase.FINAL_ROUND
     game_state.final_round_started = True
+    
+    # Set message to broadcast the knock
+    game_state.recent_message = f"{player.name} has knocked! Final round starting."
     
     # Move to next player for final round
     game_state.current_player_id = game_state.get_next_player_id(player_id)
@@ -329,6 +340,7 @@ def start_new_round(game_state: GameState) -> None:
     game_state.final_round_started = False
     game_state.knocked_player_id = ""
     game_state.turn_count = 0
+    game_state.recent_message = ""  # Clear any previous messages
     
     # Reset knocked status for all players
     for player in game_state.players.values():

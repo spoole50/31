@@ -29,14 +29,16 @@ function Card({ suit, value, handIndex, canDrag = true, onDiscard, isDiscardable
   const normalizedValue = faceCardMap[cardValue] || cardValue;
   const cardImage = `/PNG-cards-1.3/${normalizedValue}_of_${cardSuit}.png`;
 
-  const handleClick = () => {
+  const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (isDiscardable && onDiscard) {
       onDiscard();
     }
   };
 
   const getCardClass = () => {
-    let className = 'card';
+    let className = 'game-card';
     if (isDiscardable) className += ' discardable';
     if (!canDrag) className += ' no-drag';
     return className;
