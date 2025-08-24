@@ -62,7 +62,7 @@ A modern web application implementation of the classic card game "31" (also know
 #### Start the Backend (Terminal 1):
 ```bash
 cd backend
-uvicorn main:app --reload
+python main.py
 ```
 The backend will run on `http://localhost:8000`
 
