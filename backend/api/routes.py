@@ -29,6 +29,16 @@ def health_check():
         'cors_test': True
     })
 
+@game_routes.route('/debug', methods=['GET', 'POST', 'OPTIONS'])
+def debug_cors():
+    """Debug endpoint to test CORS"""
+    return jsonify({
+        'method': request.method,
+        'origin': request.headers.get('Origin'),
+        'cors_debug': True,
+        'available_games': len(games)
+    })
+
 @game_routes.route("/")
 def read_root():
     return jsonify({"message": "Welcome to the 31 Card Game Backend!", "version": "1.0.0"})

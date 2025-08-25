@@ -8,7 +8,7 @@ Supports multiple players, different AI difficulty levels, and real-time gamepla
 import os
 import threading
 import time
-from flask import Flask
+from flask import Flask, request, make_response
 from flask_cors import CORS
 
 from api.routes import game_routes
@@ -55,14 +55,16 @@ def create_app():
     if os.environ.get('RENDER'):
         allowed_origins.append("https://card-game-31-frontend.onrender.com")
     
+    # Configure CORS for frontend communication
+    # Temporarily allow all origins for debugging
     print(f"CORS allowed origins: {allowed_origins}")  # Debug logging
     
-    # Configure CORS with proper headers
+    # More permissive CORS for debugging
     CORS(app, 
-         origins=allowed_origins,
+         origins="*",  # Temporarily allow all origins
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-         allow_headers=['Content-Type', 'Authorization'],
-         supports_credentials=True)
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+         supports_credentials=False)  # Can't use credentials with wildcard origin
     
     # Register blueprints
     app.register_blueprint(game_routes)
