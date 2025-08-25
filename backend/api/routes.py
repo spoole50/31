@@ -188,13 +188,3 @@ def ai_turn_endpoint(game_id: str):
         return jsonify({"detail": "AI turn failed"}), 400
     
     return jsonify(game_state_to_dict(game_state))
-
-
-@game_routes.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint to verify API is running"""
-    return jsonify({
-        'status': 'healthy',
-        'message': '31 Card Game API is running',
-        'cors_test': True
-    })
