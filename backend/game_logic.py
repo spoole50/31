@@ -1,5 +1,6 @@
 import random
 import uuid
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -102,15 +103,24 @@ class GameState:
     knocked_player_id: str = ""
     winner_id: str = ""
     recent_message: str = ""  # For broadcasting game events
+    game_log: List[str] = field(default_factory=list)  # Play-by-play log
+    host_player_id: str = ""  # Track the original host for first round
+    last_round_winner_id: str = ""  # Track who won the previous round
+    current_turn_start_time: Optional[datetime] = None  # Track when current player's turn started
     
     def is_game_over(self) -> bool:
         """Check if the game is over"""
         active_players = [p for p in self.players.values() if not p.is_eliminated]
-        return len(active_players) <= 1 or self.phase == GamePhase.FINISHED
+        human_players = [p for p in active_players if not p.is_ai]
+        return len(active_players) <= 1 or self.phase == GamePhase.FINISHED or len(human_players) == 0
     
     def get_active_players(self) -> List[Player]:
         """Get list of active (non-eliminated) players"""
         return [p for p in self.players.values() if not p.is_eliminated]
+    
+    def get_active_human_players(self) -> List[Player]:
+        """Get list of active human (non-AI) players"""
+        return [p for p in self.players.values() if not p.is_eliminated and not p.is_ai]
     
     def get_next_player_id(self, current_id: str) -> str:
         """Get the next active player's ID"""
@@ -125,6 +135,125 @@ class GameState:
         
         next_index = (current_index + 1) % len(active_players)
         return active_players[next_index].id
+
+    def set_current_player(self, player_id: str) -> None:
+        """Set the current player and track turn start time"""
+        self.current_player_id = player_id
+        self.current_turn_start_time = datetime.now()
+
+    def get_turn_time_remaining(self, timeout_seconds: int = 45) -> int:
+        """Get remaining seconds for current player's turn"""
+        if not self.current_turn_start_time:
+            return timeout_seconds
+        
+        elapsed = (datetime.now() - self.current_turn_start_time).total_seconds()
+        remaining = max(0, timeout_seconds - elapsed)
+        return int(remaining)
+
+    def check_turn_timeout(self, timeout_seconds: int = 45) -> bool:
+        """Check if current player's turn has timed out"""
+        return self.get_turn_time_remaining(timeout_seconds) <= 0
+
+    def handle_turn_timeout(self, timeout_seconds: int = 45) -> bool:
+        """Handle a player's turn timeout by forcing an action"""
+        print(f"[TIMEOUT CHECK] Checking timeout for player {self.current_player_id}, remaining time: {self.get_turn_time_remaining(timeout_seconds)}")
+        
+        if not self.check_turn_timeout(timeout_seconds):
+            return False
+        
+        current_player = self.players.get(self.current_player_id)
+        if not current_player:
+            print(f"[TIMEOUT] No current player found: {self.current_player_id}")
+            return False
+        
+        # Don't timeout AI players - they should handle their own turns
+        if current_player.is_ai:
+            print(f"[TIMEOUT] Skipping timeout for AI player: {current_player.name}")
+            return False
+        
+        print(f"[TIMEOUT] Processing timeout for human player: {current_player.name}")
+        self.add_to_game_log(f"⏰ {current_player.name}'s turn timed out!")
+        
+        # Force the player to draw from deck if they haven't drawn yet
+        if len(current_player.hand) == 3:
+            # Player hasn't drawn yet - force draw from deck
+            if self.deck:
+                card = self.deck.pop()
+                current_player.add_card(card)
+                self.add_to_game_log(f"🃏 {current_player.name} was forced to draw from deck (timeout)")
+        
+        # If player has 4 cards, force discard of first card
+        if len(current_player.hand) > 3:
+            discarded_card = current_player.hand.pop(0)  # Remove first card
+            self.discard_pile.append(discarded_card)
+            self.add_to_game_log(f"🗑️ {current_player.name} was forced to discard {discarded_card.value} of {discarded_card.suit} (timeout)")
+        
+        # Move to next player
+        self.set_current_player(self.get_next_player_id(self.current_player_id))
+        return True
+
+    # Game logging methods
+    def add_to_game_log(self, message: str) -> None:
+        """Add a message to the game log"""
+        self.game_log.append(message)
+        # Keep log to a reasonable size (last 50 entries)
+        if len(self.game_log) > 50:
+            self.game_log = self.game_log[-50:]
+
+    def log_game_start(self) -> None:
+        """Log the start of the game with first player info"""
+        self.add_to_game_log("🎮 31 Card Game has started!")
+        if self.current_player_id in self.players:
+            current_player = self.players[self.current_player_id]
+            if self.round_number == 1 and self.current_player_id == self.host_player_id:
+                self.add_to_game_log(f"👑 {current_player.name} (host) goes first!")
+            else:
+                self.add_to_game_log(f"� {current_player.name} goes first!")
+        
+        # Log all players
+        for player in self.players.values():
+            if player.is_ai:
+                self.add_to_game_log(f"🤖 {player.name} joined the game")
+            else:
+                self.add_to_game_log(f"👤 {player.name} joined the game")
+
+    def log_card_action(self, player_name: str, action: str, card_info: str = "") -> None:
+        """Log card draw/discard actions"""
+        if action == "draw_deck":
+            self.add_to_game_log(f"🃏 {player_name} drew a card from the deck")
+        elif action == "draw_discard":
+            self.add_to_game_log(f"♻️ {player_name} took {card_info} from discard pile")
+        elif action == "discard":
+            self.add_to_game_log(f"🗑️ {player_name} discarded {card_info}")
+
+    def log_knock(self, player_name: str) -> None:
+        """Log when a player knocks"""
+        self.add_to_game_log(f"✊ {player_name} knocked! Final round begins")
+
+    def log_instant_win(self, player_name: str, score: int) -> None:
+        """Log instant win (31 points)"""
+        self.add_to_game_log(f"🎉 INSTANT WIN! {player_name} got {score} points!")
+
+    def log_round_end(self, round_results: Dict[str, any]) -> None:
+        """Log round results"""
+        self.add_to_game_log(f"🏁 Round {self.round_number} ended")
+        for player_name, result in round_results.items():
+            score = result.get('score', 0)
+            lives = result.get('lives', 0)
+            if result.get('eliminated', False):
+                self.add_to_game_log(f"💀 {player_name} eliminated! Final score: {score}")
+            else:
+                self.add_to_game_log(f"📊 {player_name}: {score} points, {lives} lives")
+
+    def log_player_elimination(self, player_name: str) -> None:
+        """Log when a player is eliminated"""
+        self.add_to_game_log(f"💀 {player_name} has been eliminated!")
+
+    def log_game_end(self, winner_name: str, final_scores: Dict[str, int]) -> None:
+        """Log game end with winner and final scores"""
+        self.add_to_game_log(f"🏆 GAME OVER! {winner_name} wins the game!")
+        for player_name, score in final_scores.items():
+            self.add_to_game_log(f"📈 Final: {player_name} - {score} points")
 
 # Game logic functions
 def create_deck() -> List[Card]:
@@ -149,7 +278,7 @@ def deal_initial_cards(game_state: GameState) -> None:
     if game_state.deck:
         game_state.discard_pile = [game_state.deck.pop()]
 
-def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficulties: Optional[List[AIDifficulty]] = None) -> GameState:
+def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficulties: Optional[List[AIDifficulty]] = None, host_player_id: str = "") -> GameState:
     """Create a new game with the specified players"""
     game_id = str(uuid.uuid4())
     game_state = GameState(game_id=game_id)
@@ -178,10 +307,17 @@ def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficu
     shuffle_deck(game_state.deck)
     deal_initial_cards(game_state)
     
-    # Set first player
+    # Set host player ID for first round logic
+    game_state.host_player_id = host_player_id
+    
+    # Set first player (host for first round, or first player if no host specified)
     if game_state.players:
-        game_state.current_player_id = list(game_state.players.keys())[0]
+        if host_player_id and host_player_id in game_state.players:
+            game_state.set_current_player(host_player_id)
+        else:
+            game_state.set_current_player(list(game_state.players.keys())[0])
         game_state.phase = GamePhase.PLAYING
+        game_state.log_game_start()
     
     return game_state
 
@@ -217,6 +353,8 @@ def draw_card(game_state: GameState, player_id: str, from_discard: bool = False)
     if from_discard and game_state.discard_pile:
         card = game_state.discard_pile.pop(0)
         player.hand.append(card)
+        card_info = f"{card.value} of {card.suit}"
+        game_state.log_card_action(player.name, "draw_discard", card_info)
         return True
     elif not from_discard:
         # Check if deck is empty
@@ -230,6 +368,7 @@ def draw_card(game_state: GameState, player_id: str, from_discard: bool = False)
                 # Shuffle and create new deck
                 shuffle_deck(cards_to_shuffle)
                 game_state.deck = cards_to_shuffle
+                game_state.add_to_game_log("🔀 Deck reshuffled from discard pile")
             else:
                 # No cards available to draw
                 return False
@@ -237,6 +376,7 @@ def draw_card(game_state: GameState, player_id: str, from_discard: bool = False)
         if game_state.deck:
             card = game_state.deck.pop()
             player.hand.append(card)
+            game_state.log_card_action(player.name, "draw_deck")
             return True
     
     return False
@@ -251,10 +391,14 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
     if 0 <= card_index < len(player.hand):
         card = player.hand.pop(card_index)
         game_state.discard_pile.insert(0, card)
+        card_info = f"{card.value} of {card.suit}"
+        game_state.log_card_action(player.name, "discard", card_info)
         
         # Check for automatic win (31 points)
         score, _ = player.calculate_best_score()
         if score == 31:
+            score, suit = player.calculate_best_score()
+            game_state.log_instant_win(player.name, score)
             # Set message for instant win
             game_state.recent_message = f"{player.name} got 31 points! Instant win!"
             # Everyone else loses a life
@@ -265,7 +409,7 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
             return True
         
         # Move to next player
-        game_state.current_player_id = game_state.get_next_player_id(player_id)
+        game_state.set_current_player(game_state.get_next_player_id(player_id))
         game_state.turn_count += 1
         
         # Check if final round should end
@@ -291,13 +435,15 @@ def knock(game_state: GameState, player_id: str) -> bool:
     player.has_knocked = True
     game_state.knocked_player_id = player_id
     game_state.phase = GamePhase.FINAL_ROUND
+    player = game_state.players[player_id]
+    game_state.log_knock(player.name)
     game_state.final_round_started = True
     
     # Set message to broadcast the knock
     game_state.recent_message = f"{player.name} has knocked! Final round starting."
     
     # Move to next player for final round
-    game_state.current_player_id = game_state.get_next_player_id(player_id)
+    game_state.set_current_player(game_state.get_next_player_id(player_id))
     
     return True
 
@@ -312,6 +458,26 @@ def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
     if not player_scores:
         return
     
+    # Determine round winner (highest score)
+    max_score = max(player_scores.values())
+    round_winners = [pid for pid, score in player_scores.items() if score == max_score]
+    
+    # Set the round winner for next round's starting player
+    # If there's a tie, pick the first winner (could be randomized if desired)
+    if round_winners:
+        game_state.last_round_winner_id = round_winners[0]
+    
+    # Log round end with player results
+    round_results = {}
+    for player_id, score in player_scores.items():
+        player = game_state.players[player_id]
+        round_results[player.name] = {
+            'score': score,
+            'lives': player.lives,
+            'eliminated': player.is_eliminated
+        }
+    game_state.log_round_end(round_results)
+    
     # Only apply life loss for lowest scores if not skipping (i.e., not a 31-point win)
     if not skip_life_loss:
         # Find the lowest score(s)
@@ -321,13 +487,55 @@ def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
         # Players with lowest score lose a life
         for player_id in losers:
             game_state.players[player_id].lose_life()
+            # Check for elimination
+            if game_state.players[player_id].lives <= 0:
+                game_state.players[player_id].is_eliminated = True
+                player = game_state.players[player_id]
+                game_state.log_player_elimination(player.name)
     
     # Check if game is over
     active_players = game_state.get_active_players()
-    if len(active_players) <= 1:
+    active_human_players = game_state.get_active_human_players()
+    
+    # Game ends if only 1 or fewer active players, or no human players remain
+    if len(active_players) <= 1 or len(active_human_players) == 0:
         game_state.phase = GamePhase.FINISHED
-        if active_players:
+        
+        # Handle different end conditions
+        if len(active_human_players) == 0 and len(active_players) > 0:
+            # All human players eliminated, AI wins
+            game_state.add_to_game_log("🤖 All human players have been eliminated!")
+            # Pick the AI with the best score as winner
+            ai_scores = {}
+            for player in active_players:
+                if player.is_ai:
+                    score, _ = player.calculate_best_score()
+                    ai_scores[player.id] = score
+            if ai_scores:
+                best_ai_id = max(ai_scores.keys(), key=lambda x: ai_scores[x])
+                game_state.winner_id = best_ai_id
+                winner = game_state.players[best_ai_id]
+                game_state.add_to_game_log(f"🏆 {winner.name} (AI) wins the game!")
+        elif len(active_players) == 1:
+            # Normal win condition - last player standing
             game_state.winner_id = active_players[0].id
+            winner = game_state.players[game_state.winner_id]
+            game_state.add_to_game_log(f"🏆 {winner.name} wins the game!")
+        elif len(active_players) == 0:
+            # Edge case - no players left
+            game_state.add_to_game_log("🏁 Game ended - no players remaining")
+        
+        # Log final scores
+        final_scores = {}
+        for player in game_state.players.values():
+            score, _ = player.calculate_best_score()
+            final_scores[player.name] = score
+        
+        if game_state.winner_id:
+            winner = game_state.players[game_state.winner_id]
+            game_state.log_game_end(winner.name, final_scores)
+        else:
+            game_state.add_to_game_log("🏁 Game ended")
         return
     
     # Start new round
@@ -351,10 +559,35 @@ def start_new_round(game_state: GameState) -> None:
     shuffle_deck(game_state.deck)
     deal_initial_cards(game_state)
     
-    # Set first active player
+    # Set first active player based on round logic
     active_players = game_state.get_active_players()
     if active_players:
-        game_state.current_player_id = active_players[0].id
+        # First round: host goes first
+        # Subsequent rounds: winner of previous round goes first
+        if game_state.round_number == 1:
+            # Host goes first in first round
+            if game_state.host_player_id and game_state.host_player_id in game_state.players and not game_state.players[game_state.host_player_id].is_eliminated:
+                game_state.set_current_player(game_state.host_player_id)
+                host_name = game_state.players[game_state.host_player_id].name
+                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
+                game_state.add_to_game_log(f"👑 {host_name} (host) goes first")
+            else:
+                # Fallback if host is not available
+                game_state.set_current_player(active_players[0].id)
+                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
+                game_state.add_to_game_log(f"🃏 {active_players[0].name} goes first")
+        else:
+            # Winner of previous round goes first
+            if game_state.last_round_winner_id and game_state.last_round_winner_id in game_state.players and not game_state.players[game_state.last_round_winner_id].is_eliminated:
+                game_state.set_current_player(game_state.last_round_winner_id)
+                winner_name = game_state.players[game_state.last_round_winner_id].name
+                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
+                game_state.add_to_game_log(f"🏆 {winner_name} (previous winner) goes first")
+            else:
+                # Fallback if previous winner is eliminated
+                game_state.set_current_player(active_players[0].id)
+                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
+                game_state.add_to_game_log(f"🃏 {active_players[0].name} goes first")
 
 # Legacy functions for backward compatibility
 def deal_cards(deck, num_players):
