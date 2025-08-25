@@ -114,6 +114,150 @@
   transform: translateY(-1px);
 }
 
+/* Back to lobby container with hover tips */
+.back-to-lobby-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-tips-hover {
+  position: relative;
+  display: inline-block;
+}
+
+.tips-icon {
+  font-size: 18px;
+  cursor: help;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.tips-icon:hover {
+  opacity: 1;
+}
+
+.tips-content {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: rgba(15, 32, 39, 0.98);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 8px;
+  padding: 15px;
+  width: 280px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.game-tips-hover:hover .tips-content {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.tips-content h4 {
+  margin: 0 0 10px 0;
+  color: var(--gold-primary, #ffd700);
+  font-size: 1em;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+}
+
+.tips-content ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #ffffff;
+}
+
+.tips-content li {
+  margin-bottom: 6px;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+/* Turn Timer */
+.turn-timer-container {
+  padding: 10px 20px;
+  background: rgba(15, 32, 39, 0.8);
+  border-bottom: 1px solid rgba(44, 83, 100, 0.3);
+}
+
+.turn-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.1em;
+  transition: color 0.3s ease;
+}
+
+.timer-icon {
+  font-size: 1.2em;
+}
+
+.timer-text {
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+}
+
+.timer-warning {
+  animation: pulse-warning 1s infinite;
+  color: #ff4444;
+  font-weight: bold;
+}
+
+.timer-critical {
+  animation: pulse-critical 0.5s infinite;
+  color: #ff0000;
+  font-weight: bold;
+  text-shadow: 0 0 10px #ff0000;
+}
+
+.turn-timer[data-critical="true"] {
+  animation: shake 0.5s infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse-critical {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
 /* Loading States */
 .table-game-loading {
   display: flex;

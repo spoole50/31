@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api`;
 
 export const useTableManager = (playerId, playerName, onGameStart) => {
   const [currentTable, setCurrentTable] = useState(null);
@@ -50,7 +50,7 @@ export const useTableManager = (playerId, playerName, onGameStart) => {
       // Check if game has started and trigger callback
       if (updatedTable.status === 'playing' && onGameStart) {
         try {
-          const gameResponse = await axios.get(`${API_BASE_URL}/tables/${updatedTable.table_id}/game`);
+          const gameResponse = await axios.get(`${API_BASE_URL}/tables/${updatedTable.table_id}/game?player_id=${playerId}`);
           onGameStart(updatedTable.table_id, gameResponse.data);
         } catch (gameErr) {
           console.error('Failed to get game state for playing table:', gameErr);
@@ -165,16 +165,17 @@ export const useTableManager = (playerId, playerName, onGameStart) => {
       setLoading(true);
       setError(null);
       
-      await axios.post(`${API_BASE_URL}/tables/join-by-code`, {
+      await axios.post(`${API_BASE_URL}/tables/join`, {
         invite_code: inviteCode,
         player_id: playerId,
+        player_name: playerName,
         password: password
       });
       
       // Find and set the joined table
       await checkPlayerTable();
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || 'Failed to join with code';
+      const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Failed to join with code';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {

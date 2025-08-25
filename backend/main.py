@@ -5,6 +5,7 @@ A Flask-based REST API for the 31 card game with AI opponents.
 Supports multiple players, different AI difficulty levels, and real-time gameplay.
 """
 
+import os
 import threading
 import time
 from flask import Flask
@@ -39,7 +40,17 @@ def create_app():
     app = Flask(__name__)
     
     # Configure CORS for frontend communication
-    CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
+    allowed_origins = [
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+    ]
+    
+    # Add production frontend URL from environment variable
+    frontend_url = os.environ.get('FRONTEND_URL')
+    if frontend_url:
+        allowed_origins.append(frontend_url)
+    
+    CORS(app, origins=allowed_origins)
     
     # Register blueprints
     app.register_blueprint(game_routes)

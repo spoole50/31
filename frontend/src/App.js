@@ -9,7 +9,7 @@ import RulesModal from './components/RulesModal';
 import TableLobby from './components/TableLobby';
 import TableGameBoard from './components/TableGameBoard';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api`;
 
 // App states
 const APP_STATES = {
@@ -339,6 +339,8 @@ function App() {
               onDiscardCard={discardCard}
               onKnock={knockGame}
               onRefresh={refreshLocalGameState}
+              onNewGame={goToLocalSetup}
+              onMainMenu={goToMainMenu}
               canDrawCard={canDrawCard()}
               canDiscardCard={canDiscardCard()}
               canKnock={canKnock()}

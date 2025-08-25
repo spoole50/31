@@ -96,7 +96,7 @@
 
 .btn-warning {
   background: linear-gradient(135deg, var(--warning-color), #d39e00);
-  color: var(--text-dark);
+  color: white;
   border-color: #d39e00;
   box-shadow: 0 0 20px rgba(255, 193, 7, 0.3);
 }
@@ -228,7 +228,20 @@
 
 .action-buttons .btn-warning {
   background: linear-gradient(135deg, var(--warning-color), var(--warning-dark));
-  color: #212529;
+  color: white;
+  text-shadow: 
+    0 0 5px rgba(255, 215, 0, 0.8),
+    0 0 10px rgba(255, 215, 0, 0.6),
+    0 0 15px rgba(255, 215, 0, 0.4),
+    0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.action-buttons .btn-warning:hover:not(.btn-disabled) {
+  text-shadow: 
+    0 0 8px rgba(255, 215, 0, 1),
+    0 0 15px rgba(255, 215, 0, 0.8),
+    0 0 25px rgba(255, 215, 0, 0.6),
+    0 0 35px rgba(255, 215, 0, 0.4);
 }
 
 /* Setup Buttons */

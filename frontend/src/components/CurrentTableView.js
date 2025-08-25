@@ -142,6 +142,14 @@ const CurrentTableView = ({
               >
                 🤖 Hard
               </button>
+              <button 
+                className="btn btn-ai btn-sm"
+                onClick={() => handleAddAI('expert')}
+                disabled={loading}
+                title="Add Expert AI"
+              >
+                🤖 Expert
+              </button>
             </div>
           )}
         </div>

@@ -38,5 +38,7 @@ def game_state_to_dict(game_state: GameState) -> Dict[str, Any]:
         "deck_size": len(game_state.deck),
         "round_number": game_state.round_number,
         "winner_id": game_state.winner_id if game_state.winner_id else None,
-        "recent_message": game_state.recent_message
+        "recent_message": game_state.recent_message,
+        "game_log": game_state.game_log,
+        "turn_time_remaining": game_state.get_turn_time_remaining()
     }

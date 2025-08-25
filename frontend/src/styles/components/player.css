@@ -22,6 +22,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: 0;
 }
 
 .player-hand.active-player {
@@ -40,17 +41,27 @@
 
 /* Player Info */
 .player-info {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: var(--spacing-sm) 0.75rem;
-  background: rgba(248, 249, 250, 0.8);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  min-height: 40px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  min-height: 28px;
+  max-height: 35px;
   overflow: hidden;
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-base);
+  position: relative;
+  z-index: 10;
+}
+
+.player-info:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 215, 0, 0.4);
 }
 
 .player-header {
@@ -64,15 +75,23 @@
 .player-name {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   margin-bottom: 0;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex-shrink: 1;
+  color: var(--text-light);
+  line-height: 1.2;
+  text-shadow: 
+    -1px -1px 0 var(--gold-primary),
+    1px -1px 0 var(--gold-primary),
+    -1px 1px 0 var(--gold-primary),
+    1px 1px 0 var(--gold-primary),
+    0 0 3px rgba(255, 215, 0, 0.5);
 }
 
 /* Player Badges */
@@ -95,20 +114,21 @@
 .player-stats {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   text-align: right;
   flex-shrink: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .score {
   margin-bottom: 0;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   font-weight: 600;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .score-hidden {

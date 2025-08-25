@@ -3,6 +3,7 @@ import { useDrop } from 'react-dnd';
 import PlayerHand from './PlayerHand';
 import DiscardPile from './DiscardPile';
 import GameActions from './GameActions';
+import GameLog from './GameLog';
 
 function GameBoard({ 
   gameState, 
@@ -10,7 +11,10 @@ function GameBoard({
   onDrawCard, 
   onDiscardCard, 
   onKnock, 
-  onRefresh 
+  onRefresh,
+  onNewGame,
+  onMainMenu,
+  turnTimeRemaining
 }) {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'CARD',
@@ -69,9 +73,6 @@ function GameBoard({
           <div className="deck-remaining">
             <strong>Cards in Deck:</strong> {gameState.deck_size}
           </div>
-          <button onClick={onRefresh} className="btn btn-small">
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -120,6 +121,12 @@ function GameBoard({
                 isCurrentPlayerTurn={isCurrentPlayerTurn}
                 currentTurnPlayer={gameState.players[gameState.current_player_id]}
                 gameState={gameState}
+                turnTimeRemaining={turnTimeRemaining}
+              />
+
+              <GameLog 
+                gameLog={gameState.game_log} 
+                isVisible={true}
               />
             </div>
           </div>
@@ -129,19 +136,40 @@ function GameBoard({
       {gameState.winner_id && (
         <div className="game-over-overlay">
           <div className="game-over-message">
-            <h2>Game Over!</h2>
-            <p>
+            <div className="winner-crown">👑</div>
+            <h2>🎉 Game Over! 🎉</h2>
+            <div className="winner-announcement">
               <strong>{gameState.players[gameState.winner_id]?.name}</strong> wins!
-            </p>
+            </div>
             <div className="final-scores">
-              <h3>Final Scores:</h3>
-              {Object.entries(gameState.players).map(([playerId, player]) => (
-                <div key={playerId} className="score-line">
-                  <span className="player-name">{player.name}:</span>
+              <h3>🏆 Final Scores</h3>
+              {Object.entries(gameState.players)
+                .sort(([,a], [,b]) => b.score - a.score)
+                .map(([playerId, player], index) => (
+                <div key={playerId} className={`score-line ${index === 0 ? 'winner-score' : ''}`}>
+                  <span className="rank-emoji">
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📋'}
+                  </span>
+                  <span className="player-name">{player.name}</span>
                   <span className="player-score">{player.score} points</span>
-                  <span className="player-lives">({player.lives} lives)</span>
+                  <span className="player-lives">
+                    {Array.from({ length: player.lives }, (_, i) => '♥').join('')}
+                    {Array.from({ length: 3 - player.lives }, (_, i) => '♡').join('')}
+                  </span>
                 </div>
               ))}
+            </div>
+            <div className="game-over-actions">
+              {onNewGame && (
+                <button onClick={onNewGame} className="btn btn-primary">
+                  🎯 New Game
+                </button>
+              )}
+              {onMainMenu && (
+                <button onClick={onMainMenu} className="btn btn-secondary">
+                  🏠 Main Menu
+                </button>
+              )}
             </div>
           </div>
         </div>

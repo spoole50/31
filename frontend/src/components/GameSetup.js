@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import RulesModal from './RulesModal';
+import './GameSetup.css';
 
 function GameSetup({ onCreateGame, error, onBack }) {
   const [playerNames, setPlayerNames] = useState(['Player 1']);
@@ -68,45 +69,50 @@ function GameSetup({ onCreateGame, error, onBack }) {
   return (
     <div className="game-setup">
       <div className="setup-container">
-        <h2>Setup New Game</h2>
+        <h2 className="setup-title">🎰 Game Setup</h2>
         
         {error && (
-          <div className="error-message">
-            {error}
+          <div className="setup-error">
+            ⚠️ {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="setup-form">
           <div className="section">
-            <h3>Human Players ({playerNames.length})</h3>
-            {playerNames.map((name, index) => (
-              <div key={index} className="player-input">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => updatePlayerName(index, e.target.value)}
-                  placeholder={`Player ${index + 1} name`}
-                  required
-                />
-                {playerNames.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePlayer(index)}
-                    className="btn btn-danger btn-sm"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
+            <h3>Human Players</h3>
+            <div className="players-list">
+              {playerNames.map((name, index) => (
+                <div key={index} className="player-input">
+                  <label htmlFor={`player${index}`}>Player {index + 1}:</label>
+                  <input
+                    type="text"
+                    id={`player${index}`}
+                    value={name}
+                    onChange={(e) => updatePlayerName(index, e.target.value)}
+                    placeholder={`Enter player ${index + 1} name`}
+                    required
+                  />
+                  {playerNames.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePlayer(index)}
+                      className="remove-player-btn"
+                      title="Remove player"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
             
             {playerNames.length < 8 && (
               <button
                 type="button"
                 onClick={addPlayer}
-                className="btn btn-secondary"
+                className="btn add-player-btn"
               >
-                Add Human Player
+                ➕ Add Human Player
               </button>
             )}
           </div>

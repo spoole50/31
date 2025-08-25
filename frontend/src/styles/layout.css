@@ -125,10 +125,11 @@
 
 .game-controls-section {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: var(--spacing-lg);
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 /* Players Section */

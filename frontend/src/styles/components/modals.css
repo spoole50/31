@@ -27,17 +27,30 @@
 
 /* Modal Content */
 .modal-content {
-  background: var(--bg-panel);
-  border: 1px solid rgba(255, 215, 0, 0.3);
-  color: var(--text-light);
-  border-radius: 16px;
+  background: linear-gradient(135deg, var(--bg-panel), rgba(15, 32, 39, 0.95));
+  border: 2px solid var(--gold-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius-xl);
   max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
   margin: var(--spacing-md);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-2xl);
   animation: modalSlideIn 0.3s ease-out;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
+  position: relative;
+}
+
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, transparent 50%, rgba(255, 215, 0, 0.05) 100%);
+  border-radius: var(--radius-xl);
+  pointer-events: none;
 }
 
 @keyframes modalSlideIn {
@@ -54,25 +67,29 @@
 /* Modal Header */
 .modal-header {
   padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-md);
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #1e3c72;
+  color: var(--gold-primary);
   font-size: var(--font-size-2xl);
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Modal Close Button */
 .modal-close {
-  background: none;
-  border: none;
-  font-size: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  font-size: 1.5rem;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--text-primary);
   padding: 0;
   width: 40px;
   height: 40px;
@@ -81,21 +98,26 @@
   align-items: center;
   justify-content: center;
   transition: all var(--transition-base);
+  font-weight: bold;
 }
 
 .modal-close:hover {
-  background: #f0f0f0;
-  color: var(--text-primary);
+  background: rgba(255, 215, 0, 0.2);
+  border-color: var(--gold-primary);
+  color: var(--gold-primary);
+  transform: scale(1.05);
 }
 
 .modal-close:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid var(--gold-primary);
   outline-offset: 2px;
 }
 
 /* Modal Body */
 .modal-body {
   padding: var(--spacing-lg) var(--spacing-xl);
+  position: relative;
+  z-index: 1;
 }
 
 /* Modal Footer */

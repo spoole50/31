@@ -3,7 +3,7 @@ import axios from 'axios';
 import GameBoard from './GameBoard';
 import './TableGameBoard.css';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api`;
 
 const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEnd }) => {
   const [gameState, setGameState] = useState(null);

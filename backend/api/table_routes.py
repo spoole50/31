@@ -30,11 +30,14 @@ def create_table():
         host_id = data.get("host_id")
         host_name = data.get("host_name")
         table_name = data.get("table_name", "New Game")
-        max_players = data.get("max_players", 8)
+        try:
+            max_players = int(data.get("max_players", 8))
+        except (ValueError, TypeError):
+            return jsonify({"error": "max_players must be a valid number"}), 400
         is_private = data.get("is_private", True)
         password = data.get("password")
         
-        print(f"Parsed data - host_id: {host_id}, host_name: {host_name}, table_name: {table_name}")
+        print(f"Parsed data - host_id: {host_id}, host_name: {host_name}, table_name: {table_name}, max_players: {max_players}")
         
         if not host_id or not host_name:
             print(f"Missing required fields - host_id: {host_id}, host_name: {host_name}")
@@ -258,6 +261,11 @@ def get_table_game(table_id: str):
     if not table.game_state:
         return jsonify({"error": "No game in progress"}), 400
     
+    # Update activity for requesting player if player_id is provided
+    player_id = request.args.get("player_id")
+    if player_id and player_id in table.players:
+        table.update_player_activity(player_id)
+    
     return jsonify(game_state_to_dict(table.game_state))
 
 
@@ -282,6 +290,8 @@ def table_game_action(table_id: str, action: str):
     data = request.get_json()
     player_id = data.get("player_id")
     
+    print(f"[GAME_ACTION] Table: {table_id}, Action: {action}, Player: {player_id}")
+    
     if not player_id:
         return jsonify({"error": "player_id is required"}), 400
     
@@ -289,12 +299,16 @@ def table_game_action(table_id: str, action: str):
     if player_id not in table.players:
         return jsonify({"error": "Player not in this table"}), 403
     
+    # Update player activity
+    table.update_player_activity(player_id)
+    
     # Get the corresponding game player ID
     game_player_id = table.get_game_player_id(player_id)
     if not game_player_id:
         return jsonify({"error": "Player not mapped to game"}), 400
     
     game_state = table.game_state
+    print(f"[GAME_ACTION] Current turn: {game_state.current_player_id}")
     
     try:
         if action == "draw":
@@ -311,10 +325,23 @@ def table_game_action(table_id: str, action: str):
             success = knock(game_state, game_player_id)
         
         elif action == "ai-turn":
-            # Verify current player is AI
+            # For AI turn, we need to check if the current player is actually AI
+            # This action should only be called when it's an AI player's turn
             current_player = game_state.players.get(game_state.current_player_id)
-            if not current_player or not current_player.is_ai:
-                return jsonify({"error": "Current player is not AI"}), 400
+            print(f"[AI_TURN] Current player: {game_state.current_player_id}")
+            print(f"[AI_TURN] Player exists: {current_player is not None}")
+            if current_player:
+                print(f"[AI_TURN] Player name: {current_player.name}, is_ai: {current_player.is_ai}")
+            
+            if not current_player:
+                return jsonify({"error": "Current player not found"}), 400
+            
+            # Only allow AI turn if current player is AI
+            if not current_player.is_ai:
+                print(f"[AI_TURN] ERROR: Attempted AI turn for human player {current_player.name}")
+                return jsonify({"error": f"Cannot process AI turn - current player {current_player.name} is human"}), 400
+                
+            print(f"[AI_TURN] Processing AI turn for {current_player.name}")
             success = advanced_ai_turn(game_state, game_state.current_player_id)
         
         else:
@@ -356,10 +383,31 @@ def get_player_current_table(player_id: str):
 
 @table_routes.route("/api/tables/cleanup", methods=["POST"])
 def cleanup_tables():
-    """Clean up old finished tables (admin endpoint)"""
+    """Clean up old finished tables and check for disconnected players"""
     try:
+        # Check for disconnected players
+        disconnected_log = table_manager.check_all_tables_for_disconnects(timeout_seconds=45)
+        
+        # Clean up old tables
         table_manager.cleanup_old_tables()
-        return jsonify({"message": "Cleanup completed"})
+        
+        return jsonify({
+            "message": "Cleanup completed",
+            "disconnected_players": disconnected_log
+        })
     
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@table_routes.route("/api/tables/check-disconnects", methods=["POST"])
+def check_disconnects():
+    """Check for disconnected players across all tables"""
+    try:
+        disconnected_log = table_manager.check_all_tables_for_disconnects(timeout_seconds=45)
+        return jsonify({
+            "message": "Disconnect check completed",
+            "disconnected_players": disconnected_log
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
