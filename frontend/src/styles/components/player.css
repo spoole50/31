@@ -163,14 +163,42 @@
 
 .life-indicator {
   font-size: var(--font-size-md);
+  transition: all 0.3s ease;
+  display: inline-block;
 }
 
 .life-indicator.alive {
   color: var(--danger-color);
+  text-shadow: 0 0 4px rgba(255, 68, 68, 0.4);
+  animation: heartbeat 2s ease-in-out infinite;
 }
 
 .life-indicator.lost {
   color: var(--border-light);
+  opacity: 0.5;
+  animation: fade-out 0.5s ease-out;
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1.2);
+    color: var(--danger-color);
+  }
+  to {
+    opacity: 0.5;
+    transform: scale(1);
+    color: var(--border-light);
+  }
 }
 
 /* Player Status Indicators */

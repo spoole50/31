@@ -1,5 +1,4 @@
 import React from 'react';
-import { useDrop } from 'react-dnd';
 import PlayerHand from './PlayerHand';
 import DiscardPile from './DiscardPile';
 import GameActions from './GameActions';
@@ -14,18 +13,9 @@ function GameBoard({
   onRefresh,
   onNewGame,
   onMainMenu,
-  turnTimeRemaining
+  turnTimeRemaining,
+  hideGameOverOverlay = false
 }) {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: 'CARD',
-    drop: (item) => {
-      // Handle card drop to discard pile
-      onDiscardCard(item.handIndex);
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  }));
 
   const isCurrentPlayerTurn = gameState.current_player_id === currentPlayerId;
   const currentPlayer = gameState.players[currentPlayerId];
@@ -105,9 +95,6 @@ function GameBoard({
           <div className="discard-section">
             <DiscardPile
               cards={gameState.discard_pile}
-              canDrop={canDiscardCard}
-              dropRef={drop}
-              isOver={isOver}
               onDrawFromDiscard={() => onDrawCard(true)}
               canDrawFromDiscard={canDrawCard}
             />
@@ -150,7 +137,8 @@ function GameBoard({
         </div>
       </div>
 
-      {gameState.winner_id && (
+      {/* Game Over Overlay - only show if not hidden */}
+      {gameState.winner_id && !hideGameOverOverlay && (
         <div className="game-over-overlay">
           <div className="game-over-message">
             <div className="winner-crown">👑</div>

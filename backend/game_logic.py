@@ -85,9 +85,12 @@ class Player:
     
     def lose_life(self):
         """Player loses a life"""
+        old_lives = self.lives
         self.lives -= 1
+        print(f"[LIFE_LOSS] {self.name}: {old_lives} -> {self.lives} lives")  # Debug logging
         if self.lives <= 0:
             self.is_eliminated = True
+            print(f"[ELIMINATION] {self.name} has been eliminated!")  # Debug logging
 
 @dataclass
 class GameState:
@@ -398,12 +401,14 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
         score, _ = player.calculate_best_score()
         if score == 31:
             score, suit = player.calculate_best_score()
+            print(f"[INSTANT_WIN] {player.name} got 31 points! Everyone else loses a life")  # Debug logging
             game_state.log_instant_win(player.name, score)
             # Set message for instant win
             game_state.recent_message = f"{player.name} got 31 points! Instant win!"
             # Everyone else loses a life
             for other_player in game_state.players.values():
                 if other_player.id != player_id:
+                    print(f"[INSTANT_WIN_LOSS] {other_player.name} loses a life due to instant win")  # Debug logging
                     other_player.lose_life()
             end_round(game_state, skip_life_loss=True)  # Skip additional life loss
             return True
@@ -484,14 +489,20 @@ def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
         min_score = min(player_scores.values())
         losers = [pid for pid, score in player_scores.items() if score == min_score]
         
+        print(f"[ROUND_END] Min score: {min_score}, Losers: {[game_state.players[pid].name for pid in losers]}")  # Debug logging
+        
         # Players with lowest score lose a life
         for player_id in losers:
+            player = game_state.players[player_id]
+            print(f"[LIFE_LOSS] {player.name} loses a life (score: {player_scores[player_id]})")  # Debug logging
             game_state.players[player_id].lose_life()
             # Check for elimination
             if game_state.players[player_id].lives <= 0:
                 game_state.players[player_id].is_eliminated = True
                 player = game_state.players[player_id]
                 game_state.log_player_elimination(player.name)
+    else:
+        print(f"[ROUND_END] Skipping life loss (instant win scenario)")  # Debug logging
     
     # Check if game is over
     active_players = game_state.get_active_players()

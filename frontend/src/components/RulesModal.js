@@ -34,7 +34,7 @@ function RulesModal({ isOpen, onClose }) {
               <li><strong>Your Turn:</strong>
                 <ul>
                   <li>Draw from the deck OR draw from discard pile</li>
-                  <li>Discard one card (drag to discard pile)</li>
+                  <li>Discard one card (click to discard)</li>
                 </ul>
               </li>
               <li><strong>Knocking:</strong> Click "Knock" to signal the final round</li>

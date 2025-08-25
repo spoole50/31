@@ -382,7 +382,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   animation: fadeIn 0.5s ease;
 }
 
@@ -478,6 +478,36 @@
 
 .game-finished-actions {
   margin-top: 25px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.game-finished-actions .play-again-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.1em;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-finished-actions .play-again-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.game-finished-actions .play-again-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .game-finished-actions .back-to-lobby-btn {
@@ -495,6 +525,27 @@
 .game-finished-actions .back-to-lobby-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Host Restart Info */
+.host-restart-info {
+  text-align: center;
+  color: #6c757d;
+  margin: 15px 0;
+  padding: 15px;
+  background: rgba(108, 117, 125, 0.1);
+  border-radius: 8px;
+  border: 1px dashed #6c757d;
+}
+
+.host-restart-info p {
+  margin: 5px 0;
+  font-size: 0.9em;
+}
+
+.host-restart-info .host-name {
+  font-weight: 600;
+  color: #495057;
 }
 
 /* Responsive Design */

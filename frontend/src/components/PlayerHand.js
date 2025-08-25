@@ -81,7 +81,6 @@ function PlayerHand({
                 suit={card.suit}
                 value={card.value}
                 handIndex={index}
-                canDrag={canInteract && player.hand.length === 4}
                 onDiscard={canInteract ? () => onDiscardCard(index) : null}
                 isDiscardable={canInteract && player.hand.length === 4}
               />
@@ -100,8 +99,8 @@ function PlayerHand({
 
       {player.hand.length === 4 && isCurrentPlayer && (
         <div className="discard-instruction">
-          <span className="instruction-desktop">Click a card or drag it to the discard pile</span>
-          <span className="instruction-mobile">Tap or drag a card to discard</span>
+          <span className="instruction-desktop">Click a card to discard</span>
+          <span className="instruction-mobile">Tap a card to discard</span>
         </div>
       )}
     </div>

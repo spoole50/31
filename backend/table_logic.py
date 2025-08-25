@@ -294,6 +294,31 @@ class GameTable:
             print(f"Error starting game: {e}")  # Debug logging
             return False
     
+    def restart_game(self) -> bool:
+        """Restart the game with the same players (only for finished games)"""
+        if self.status != TableStatus.FINISHED:
+            return False
+        
+        try:
+            # Reset table status to waiting
+            self.status = TableStatus.WAITING
+            
+            # Reset all players to joined status (except eliminated players who can rejoin)
+            for player in self.players.values():
+                if player.status == PlayerStatus.PLAYING:
+                    player.status = PlayerStatus.JOINED
+            
+            # Clear the old game state and player mapping
+            self.game_state = None
+            self.player_id_mapping = {}
+            
+            print(f"Game restarted for table {self.table_id} with {len(self.players)} players")
+            return True
+            
+        except Exception as e:
+            print(f"Error restarting game: {e}")
+            return False
+
     def to_dict(self) -> dict:
         """Convert table to dictionary for API responses"""
         from utils.serializers import game_state_to_dict
@@ -507,6 +532,19 @@ class TableManager:
         
         return table.start_game()
     
+    def restart_table_game(self, table_id: str, host_id: str) -> bool:
+        """Restart game for a finished table (only host can restart)"""
+        table = self.get_table(table_id)
+        if not table:
+            return False
+        
+        # Verify host
+        host = table.get_host()
+        if not host or host.id != host_id:
+            return False
+        
+        return table.restart_game()
+
     def check_all_tables_for_disconnects(self, timeout_seconds: int = 45):
         """Check all tables for disconnected players and turn timeouts"""
         disconnected_log = []

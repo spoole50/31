@@ -266,6 +266,8 @@ def get_table_game(table_id: str):
     if player_id and player_id in table.players:
         table.update_player_activity(player_id)
     
+    # Allow getting game state for both playing and finished games
+    # This enables showing the final scores and play again button
     return jsonify(game_state_to_dict(table.game_state))
 
 
@@ -410,4 +412,44 @@ def check_disconnects():
             "disconnected_players": disconnected_log
         })
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@table_routes.route("/api/tables/<table_id>/restart", methods=["POST"])
+def restart_table_game(table_id: str):
+    """Restart a finished game with the same players (host only)"""
+    try:
+        data = request.get_json()
+        host_id = data.get("host_id")
+        
+        print(f"[RESTART_GAME] Request data: {data}")
+        print(f"[RESTART_GAME] Table ID: {table_id}, Host ID: {host_id}")
+        
+        if not host_id:
+            print(f"[RESTART_GAME] Error: host_id is required")
+            return jsonify({"error": "host_id is required"}), 400
+        
+        table = table_manager.get_table(table_id)
+        if not table:
+            return jsonify({"error": "Table not found"}), 404
+        
+        if table.status != TableStatus.FINISHED:
+            return jsonify({"error": "Can only restart finished games"}), 400
+        
+        success = table_manager.restart_table_game(table_id, host_id)
+        
+        print(f"[RESTART_GAME] Restart game result: {success}")
+        
+        if not success:
+            print(f"[RESTART_GAME] Error: Could not restart game")
+            return jsonify({"error": "Could not restart game - not host or table not found"}), 400
+        
+        table = table_manager.get_table(table_id)
+        print(f"[RESTART_GAME] Game restarted successfully, new status: {table.status}")
+        return jsonify(table.to_dict())
+    
+    except Exception as e:
+        print(f"[RESTART_GAME] Exception: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500

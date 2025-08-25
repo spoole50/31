@@ -24,6 +24,12 @@ The 31 Card Game now features a comprehensive online multiplayer system with a t
 - **Host Controls**: Only hosts can start games and add AI players
 - **Status Tracking**: See table status (waiting, ready, playing, finished)
 - **Player Management**: View player list with statuses and roles
+- **Play Again**: Hosts can restart finished games with the same lobby
+
+### 🎮 Game Flow Features
+- **Seamless Restart**: After a game ends, hosts can restart with the same players
+- **Lobby Persistence**: Players remain in the same lobby between games
+- **Quick Restart**: No need to recreate tables or re-invite players
 
 ## How to Use
 
@@ -51,6 +57,12 @@ The 31 Card Game now features a comprehensive online multiplayer system with a t
 3. Host clicks "Start Game" when ready
 4. Game begins automatically
 
+### Playing Again
+1. After a game finishes, the host will see a "Play Again" button
+2. Clicking this button restarts the game with the same players
+3. All players return to the lobby and can start another round
+4. Non-host players see a message indicating the host can restart
+
 ## API Endpoints
 
 ### Table Management
@@ -58,6 +70,7 @@ The 31 Card Game now features a comprehensive online multiplayer system with a t
 - `POST /api/tables/join` - Join a table by code or ID
 - `GET /api/tables/{id}` - Get table information
 - `POST /api/tables/{id}/start` - Start the game (host only)
+- `POST /api/tables/{id}/restart` - Restart a finished game (host only)
 - `POST /api/tables/{id}/add-ai` - Add AI player (host only)
 - `POST /api/tables/{id}/leave` - Leave a table
 - `GET /api/tables` - List public tables

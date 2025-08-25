@@ -1,21 +1,6 @@
 import React from 'react';
-import { useDrag } from 'react-dnd';
 
-function Card({ suit, value, handIndex, canDrag = true, onDiscard, isDiscardable = false }) {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: 'CARD',
-    item: { suit, value, handIndex },
-    canDrag: canDrag,
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  }));
-
-  const style = {
-    opacity: isDragging ? 0.5 : 1,
-    cursor: canDrag ? 'move' : 'default',
-  };
-
+function Card({ suit, value, handIndex, onDiscard, isDiscardable = false }) {
   const cardSuit = suit ? suit.toLowerCase() : 'unknown';
   const cardValue = value ? value.toLowerCase() : 'unknown';
 
@@ -40,15 +25,15 @@ function Card({ suit, value, handIndex, canDrag = true, onDiscard, isDiscardable
   const getCardClass = () => {
     let className = 'game-card';
     if (isDiscardable) className += ' discardable';
-    if (!canDrag) className += ' no-drag';
     return className;
   };
 
   return (
     <div 
-      ref={drag} 
       className={getCardClass()} 
-      style={style}
+      style={{
+        cursor: isDiscardable ? 'pointer' : 'default',
+      }}
       onClick={handleClick}
       title={isDiscardable ? 'Click to discard' : ''}
     >
@@ -60,8 +45,8 @@ function Card({ suit, value, handIndex, canDrag = true, onDiscard, isDiscardable
       />
       {isDiscardable && (
         <div className="discard-overlay">
-          <span className="discard-text-desktop">Click or drag to discard</span>
-          <span className="discard-text-mobile">Tap/Drag</span>
+          <span className="discard-text-desktop">Click to discard</span>
+          <span className="discard-text-mobile">Tap to discard</span>
         </div>
       )}
     </div>

@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import axios from 'axios';
 import MainMenu from './components/MainMenu';
 import GameBoard from './components/GameBoard';
@@ -296,23 +294,21 @@ function App() {
 
     case APP_STATES.LOCAL_GAME:
       return (
-        <DndProvider backend={HTML5Backend}>
-          <div className="app">
-            <div className="header">
-              <div className="header-content">
-                <h1>31</h1>
-                <div className="header-controls">
-                  <button 
-                    onClick={() => setShowRules(true)} 
-                    className="btn btn-secondary btn-compact"
-                    title="View game rules"
-                  >
-                    📖 Rules
-                  </button>
-                  <button onClick={goToMainMenu} className="btn btn-secondary btn-compact">
-                    🏠 Menu
-                  </button>
-                </div>
+        <div className="app">
+          <div className="header">
+            <div className="header-content">
+              <h1>31</h1>
+              <div className="header-controls">
+                <button 
+                  onClick={() => setShowRules(true)} 
+                  className="btn btn-secondary btn-compact"
+                  title="View game rules"
+                >
+                  📖 Rules
+                </button>
+                <button onClick={goToMainMenu} className="btn btn-secondary btn-compact">
+                  🏠 Menu
+                </button>
               </div>
             </div>
 
@@ -342,7 +338,7 @@ function App() {
               onClose={() => setShowRules(false)} 
             />
           </div>
-        </DndProvider>
+        </div>
       );
 
     case APP_STATES.ONLINE_LOBBY:
@@ -363,21 +359,19 @@ function App() {
 
     case APP_STATES.ONLINE_GAME:
       return (
-        <DndProvider backend={HTML5Backend}>
-          <div className="app">
-            <TableGameBoard
-              tableId={currentTableId}
-              playerId={playerId}
-              playerName={playerName}
-              onBackToLobby={() => setAppState(APP_STATES.ONLINE_LOBBY)}
-              onGameEnd={handleGameEnd}
-            />
-            <RulesModal 
-              isOpen={showRules} 
-              onClose={() => setShowRules(false)} 
-            />
-          </div>
-        </DndProvider>
+        <div className="app">
+          <TableGameBoard
+            tableId={currentTableId}
+            playerId={playerId}
+            playerName={playerName}
+            onBackToLobby={() => setAppState(APP_STATES.ONLINE_LOBBY)}
+            onGameEnd={handleGameEnd}
+          />
+          <RulesModal 
+            isOpen={showRules} 
+            onClose={() => setShowRules(false)} 
+          />
+        </div>
       );
 
     default:

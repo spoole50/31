@@ -3,9 +3,6 @@ import Card from './Card';
 
 function DiscardPile({ 
   cards, 
-  canDrop, 
-  dropRef, 
-  isOver, 
   onDrawFromDiscard, 
   canDrawFromDiscard 
 }) {
@@ -13,17 +10,13 @@ function DiscardPile({
 
   return (
     <div className="discard-pile-section">
-      <div 
-        ref={dropRef}
-        className={`discard-pile ${isOver ? 'drop-over' : ''} ${canDrop ? 'can-drop' : ''}`}
-      >
+      <div className="discard-pile">
         <h3>Discard Pile</h3>
         {topCard ? (
           <div className="discard-card-container">
             <Card 
               suit={topCard.suit} 
               value={topCard.value} 
-              canDrag={false}
             />
             {canDrawFromDiscard && (
               <button 
@@ -46,12 +39,6 @@ function DiscardPile({
         {cards.length > 1 && (
           <div className="pile-count">
             {cards.length} cards
-          </div>
-        )}
-        
-        {canDrop && (
-          <div className="drop-zone-indicator">
-            Drop card here to discard
           </div>
         )}
       </div>

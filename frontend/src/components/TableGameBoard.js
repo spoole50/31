@@ -17,10 +17,10 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
     // Load initial game state
     loadGameState();
     
-    // Poll for game updates
+    // Poll for game updates - reduced interval for better responsiveness
     const interval = setInterval(() => {
       loadGameState();
-    }, 2000); // Refresh every 2 seconds
+    }, 1000); // Refresh every 1 second for more responsive updates
     
     return () => clearInterval(interval);
   }, [tableId]);
@@ -65,8 +65,8 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
       const tableResponse = await axios.get(`${API_BASE_URL}/tables/${tableId}`);
       setTableInfo(tableResponse.data);
       
-      // Get game state if game is active
-      if (tableResponse.data.status === 'playing') {
+      // Get game state if game is active or finished
+      if (tableResponse.data.status === 'playing' || tableResponse.data.status === 'finished') {
         try {
           const gameResponse = await axios.get(`${API_BASE_URL}/tables/${tableId}/game?player_id=${playerId}`);
           const gameData = gameResponse.data;
@@ -88,10 +88,8 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
           // Don't redirect back, let user try to refresh
         }
       } else {
-        // Game finished or table not in playing state
-        if (tableResponse.data.status === 'finished') {
-          onGameEnd(tableResponse.data);
-        } else if (tableResponse.data.status === 'waiting' || tableResponse.data.status === 'ready') {
+        // Game hasn't started yet or other status, go back to lobby
+        if (tableResponse.data.status === 'waiting' || tableResponse.data.status === 'ready') {
           // Game hasn't started yet, go back to lobby
           onBackToLobby();
         }
@@ -115,6 +113,13 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
       );
       
       setGameState(response.data);
+      
+      // Force immediate refresh to ensure we have the latest state
+      // This is especially important for life tracking and game state changes
+      setTimeout(() => {
+        loadGameState();
+      }, 500); // Small delay to allow server to fully process
+      
       return true;
     } catch (err) {
       setError('Action failed: ' + (err.response?.data?.error || err.message));
@@ -140,6 +145,39 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
 
   const handleRefresh = () => {
     loadGameState();
+  };
+
+  const handlePlayAgain = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/tables/${tableId}/restart`,
+        {
+          host_id: playerId
+        }
+      );
+      
+      // Restart successful - table should now be in waiting status
+      // The loadGameState function will detect this and redirect to lobby
+      console.log('Game restarted successfully, redirecting to lobby...');
+      
+      // Force immediate reload to trigger the lobby redirect
+      await loadGameState();
+      
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message;
+      if (errorMsg.includes('Can only restart finished games')) {
+        setError('This game cannot be restarted right now.');
+      } else if (errorMsg.includes('not host')) {
+        setError('Only the host can restart the game.');
+      } else {
+        setError('Failed to restart game: ' + errorMsg);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -256,9 +294,10 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
         onKnock={handleKnock}
         onRefresh={handleRefresh}
         turnTimeRemaining={localTurnTimeRemaining}
+        hideGameOverOverlay={true}
       />
 
-      {gameState.phase === 'finished' && (
+      {gameState && gameState.phase === 'finished' && (
         <div className="game-finished-overlay">
           <div className="game-finished-content">
             <h2>Game Finished!</h2>
@@ -287,6 +326,20 @@ const TableGameBoard = ({ tableId, playerId, playerName, onBackToLobby, onGameEn
             </div>
             
             <div className="game-finished-actions">
+              {tableInfo && tableInfo.host_id === playerId ? (
+                <button 
+                  onClick={handlePlayAgain} 
+                  className="play-again-btn"
+                  disabled={loading}
+                >
+                  {loading ? '🔄 Restarting...' : '🎮 Play Again'}
+                </button>
+              ) : (
+                <div className="host-restart-info">
+                  <p>🎮 Only the host can start a new game</p>
+                  <p className="host-name">Host: {tableInfo?.players?.find(p => p.is_host)?.name}</p>
+                </div>
+              )}
               <button onClick={onBackToLobby} className="back-to-lobby-btn">
                 Back to Lobby
               </button>
