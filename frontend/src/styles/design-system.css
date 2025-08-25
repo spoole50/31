@@ -1,0 +1,202 @@
+/* Design System - Core Variables and Tokens */
+:root {
+  /* === COLORS === */
+  
+  /* Primary Dark Theme */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2d2d2d;
+  --bg-surface: #1e1e1e;
+  
+  /* Gold Accent System */
+  --gold-primary: #ffd700;
+  --gold-secondary: #b8860b;
+  --gold-tertiary: #daa520;
+  --gold-muted: #8b7355;
+  
+  /* Primary Color System (matching user preferences) */
+  --primary-color: var(--gold-primary);
+  --primary-dark: var(--gold-secondary);
+  
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-muted: #a0a0a0;
+  --text-accent: var(--gold-primary);
+  --text-dark: #0a0a0a;  /* Dark text for gold backgrounds */
+  
+  /* Status Colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+  
+  /* Card Colors */
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  
+  /* Interactive States */
+  --hover-overlay: rgba(255, 215, 0, 0.1);
+  --active-overlay: rgba(255, 215, 0, 0.2);
+  --focus-ring: var(--gold-primary);
+  
+  /* === SPACING === */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  
+  /* Additional spacing for user preferences */
+  --spacing-sm: var(--space-3);   /* 12px */
+  --spacing-lg: var(--space-6);   /* 24px */
+  
+  /* === TYPOGRAPHY === */
+  --font-family-base: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-family-mono: 'Fira Code', 'Consolas', monospace;
+  
+  /* Font Sizes */
+  --text-xs: 0.75rem;   /* 12px */
+  --text-sm: 0.875rem;  /* 14px */
+  --text-base: 1rem;    /* 16px */
+  --text-lg: 1.125rem;  /* 18px */
+  --text-xl: 1.25rem;   /* 20px */
+  --text-2xl: 1.5rem;   /* 24px */
+  --text-3xl: 1.875rem; /* 30px */
+  --text-4xl: 2.25rem;  /* 36px */
+  --text-5xl: 3rem;     /* 48px */
+  
+  /* Font Weights */
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  
+  /* Line Heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+  
+  /* === BORDERS === */
+  --border-width: 1px;
+  --border-width-2: 2px;
+  --border-radius-sm: 0.25rem;  /* 4px */
+  --border-radius: 0.5rem;      /* 8px */
+  --border-radius-lg: 0.75rem;  /* 12px */
+  --border-radius-xl: 1rem;     /* 16px */
+  --border-radius-full: 9999px;
+  
+  /* Additional radius aliases */
+  --radius-lg: var(--border-radius-lg);
+  
+  /* Font Size Aliases */
+  --font-size-md: var(--text-lg);  /* 18px */
+  
+  /* === SHADOWS === */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 20px rgba(255, 215, 0, 0.3);
+  
+  /* Enhanced Gold Bar Shadows */
+  --shadow-casino: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 215, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  
+  --shadow-gold-bar: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 2px rgba(255, 215, 0, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(184, 134, 11, 0.8),
+    0 0 30px rgba(255, 215, 0, 0.6);
+
+  --shadow-gold-bar-hover: 
+    0 16px 50px rgba(0, 0, 0, 0.6),
+    0 0 0 3px rgba(255, 215, 0, 0.6),
+    inset 0 3px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -3px 0 rgba(184, 134, 11, 0.9),
+    0 0 40px rgba(255, 215, 0, 0.8);
+
+  /* Gold Gradients */
+  --gradient-gold-bar: linear-gradient(145deg, 
+    #ffd700 0%, 
+    #ffed4a 25%, 
+    #f59e0b 50%, 
+    #d97706 75%, 
+    #b45309 100%);
+  
+  --gradient-gold-bar-hover: linear-gradient(145deg, 
+    #ffed4a 0%, 
+    #fbbf24 25%, 
+    #f59e0b 50%, 
+    #d97706 75%, 
+    #92400e 100%);
+  
+  /* === TRANSITIONS === */
+  --transition-fast: 150ms ease-in-out;
+  --transition-base: 250ms ease-in-out;
+  --transition-slow: 350ms ease-in-out;
+  
+  /* === Z-INDEX === */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+  
+  /* === BREAKPOINTS (for JS access) === */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 640px) {
+  :root {
+    /* Smaller spacing on mobile */
+    --space-4: 0.875rem;  /* 14px instead of 16px */
+    --space-6: 1.25rem;   /* 20px instead of 24px */
+    --space-8: 1.5rem;    /* 24px instead of 32px */
+    
+    /* Smaller text on mobile */
+    --text-2xl: 1.375rem; /* 22px instead of 24px */
+    --text-3xl: 1.75rem;  /* 28px instead of 30px */
+    --text-4xl: 2rem;     /* 32px instead of 36px */
+  }
+}
+
+/* === ACCESSIBILITY === */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-base: 0ms;
+    --transition-slow: 0ms;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --bg-primary: #000000;
+    --bg-secondary: #000000;
+    --gold-primary: #ffff00;
+  }
+}
