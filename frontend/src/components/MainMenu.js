@@ -54,7 +54,7 @@ const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
                 </div>
                 <button 
                   onClick={handleLocalGameClick}
-                  className="mode-button local-button"
+                  className="btn btn-primary mode-button"
                 >
                   Start Local Game
                 </button>
@@ -75,7 +75,7 @@ const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
                 {!showOnlineForm ? (
                   <button 
                     onClick={handleOnlineGameClick}
-                    className="mode-button online-button"
+                    className="btn btn-primary mode-button"
                   >
                     Play Online
                   </button>
@@ -101,14 +101,14 @@ const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
                     <div className="form-buttons">
                       <button 
                         onClick={handleOnlineGameClick}
-                        className="mode-button online-button"
+                        className="btn btn-primary mode-button"
                         disabled={!playerName.trim()}
                       >
                         Enter Lobby
                       </button>
                       <button 
                         onClick={() => setShowOnlineForm(false)}
-                        className="cancel-button"
+                        className="btn btn-secondary cancel-button"
                       >
                         Cancel
                       </button>
@@ -120,7 +120,7 @@ const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
           </div>
 
           <div className="additional-options">
-            <button onClick={onShowRules} className="rules-button">
+            <button onClick={onShowRules} className="btn btn-ghost rules-button">
               📖 Game Rules
             </button>
           </div>

@@ -74,7 +74,7 @@ function PlayerHand({
       <div className="cards-container">
         {/* Show cards for current player, or when game is finished, or if player is eliminated */}
         {(isCurrentPlayer || player.is_eliminated || gamePhase === 'finished') ? (
-          <div className="cards">
+          <div className={`cards ${player.hand.length === 4 ? 'four-cards' : ''}`}>
             {player.hand.map((card, index) => (
               <Card
                 key={`${card.suit}-${card.value}-${index}`}
@@ -88,7 +88,7 @@ function PlayerHand({
             ))}
           </div>
         ) : (
-          <div className="cards cards-hidden">
+          <div className={`cards cards-hidden ${player.hand.length === 4 ? 'four-cards' : ''}`}>
             {player.hand.map((_, index) => (
               <div key={index} className="game-card card-back">
                 <div className="card-back-design">🂠</div>
@@ -100,7 +100,8 @@ function PlayerHand({
 
       {player.hand.length === 4 && isCurrentPlayer && (
         <div className="discard-instruction">
-          Click a card or drag it to the discard pile
+          <span className="instruction-desktop">Click a card or drag it to the discard pile</span>
+          <span className="instruction-mobile">Tap or drag a card to discard</span>
         </div>
       )}
     </div>

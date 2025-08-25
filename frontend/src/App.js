@@ -299,27 +299,18 @@ function App() {
         <DndProvider backend={HTML5Backend}>
           <div className="app">
             <div className="header">
-              <h1>31</h1>
-              <div className="game-info">
-                <span>Round: {gameState.round_number}</span>
-                <span>Phase: {gameState.phase}</span>
-                {gameState.winner_id && (
-                  <span className="winner">
-                    Winner: {gameState.players[gameState.winner_id]?.name}
-                  </span>
-                )}
-              </div>
-              <div className="header-controls">
-                <div className="header-buttons">
+              <div className="header-content">
+                <h1>31</h1>
+                <div className="header-controls">
                   <button 
                     onClick={() => setShowRules(true)} 
-                    className="btn btn-secondary btn-small"
+                    className="btn btn-secondary btn-compact"
                     title="View game rules"
                   >
                     📖 Rules
                   </button>
-                  <button onClick={goToMainMenu} className="btn btn-secondary">
-                    Main Menu
+                  <button onClick={goToMainMenu} className="btn btn-secondary btn-compact">
+                    🏠 Menu
                   </button>
                 </div>
               </div>

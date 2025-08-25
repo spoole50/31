@@ -89,7 +89,7 @@
 .btn-primary:hover:not(:disabled) {
   background: var(--gradient-gold-bar-hover);
   transform: translateY(-3px);
-  box-shadow: var(--shadow-gold-bar-hover);
+  box-shadow: var(--shadow-gold-bar);
   border-color: var(--gold-primary);
 }
 
@@ -199,22 +199,4 @@
   .btn-lg {
     min-height: 56px;
   }
-}
-
-/* === COMPACT BUTTON VARIANT === */
-.btn-compact {
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
-  min-width: 80px;
-  border-width: 2px;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.btn-compact:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.btn-compact:active {
-  transform: translateY(-1px);
 }

@@ -13,11 +13,11 @@ function DiscardPile({
 
   return (
     <div className="discard-pile-section">
-      <h3>Discard Pile</h3>
       <div 
         ref={dropRef}
         className={`discard-pile ${isOver ? 'drop-over' : ''} ${canDrop ? 'can-drop' : ''}`}
       >
+        <h3>Discard Pile</h3>
         {topCard ? (
           <div className="discard-card-container">
             <Card 
@@ -38,7 +38,7 @@ function DiscardPile({
         ) : (
           <div className="empty-discard">
             <div className="empty-pile-placeholder">
-              Empty Discard Pile
+              Empty Pile
             </div>
           </div>
         )}

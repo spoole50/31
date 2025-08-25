@@ -1,0 +1,50 @@
+/* 31 Card Game - Main Stylesheet */
+
+/* Base styles and CSS variables */
+@import './base.css';
+
+/* Layout and grid system */
+@import './layout.css';
+
+/* Component styles */
+@import './components/buttons.css';
+@import './components/cards.css';
+@import './components/player.css';
+@import './components/game.css';
+@import './components/forms.css';
+@import './components/modals.css';
+
+/* Utility classes and animations */
+@import './utilities.css';
+
+/* Critical overrides for casino theme */
+.header .game-info span,
+.game-info span,
+div.game-info span {
+  padding: 0.5rem 1rem !important;
+  background: rgba(15, 32, 39, 0.95) !important;
+  color: #ffd700 !important;
+  border: 1px solid rgba(255, 215, 0, 0.3) !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(5px) !important;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3) !important;
+}
+
+.setup-container {
+  background: rgba(15, 32, 39, 0.9) !important;
+  border: 1px solid rgba(44, 83, 100, 0.5) !important;
+  color: white !important;
+}
+
+.setup-container h2 {
+  color: #ffd700 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5) !important;
+}
+
+.section h3 {
+  color: #ffd700 !important;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3) !important;
+}

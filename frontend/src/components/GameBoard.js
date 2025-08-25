@@ -39,40 +39,37 @@ function GameBoard({
 
   return (
     <div className="game-board">
+      {/* Compact Game Status Header */}
       <div className="game-status">
-        <div className="current-turn">
-          <strong>Current Turn: </strong>
-          {gameState.players[gameState.current_player_id]?.name || 'Unknown'}
-          {gameState.phase === 'final_round' && (
-            <span className="final-round"> (Final Round)</span>
-          )}
-        </div>
-        
-        {/* Other Players - Condensed single line */}
-        {otherPlayers.length > 0 && (
-          <div className="other-players-summary">
-            <strong>Other Players: </strong>
-            {otherPlayers.map(([playerId, player], index) => (
-              <span key={playerId} className="player-summary">
-                {player.name}
-                <span className="lives-indicator">
-                  {Array.from({ length: player.lives }, (_, i) => (
-                    <span key={i} className="life-heart">♥</span>
-                  ))}
-                  {Array.from({ length: 3 - player.lives }, (_, i) => (
-                    <span key={i} className="life-heart lost">♡</span>
-                  ))}
+        <div className="status-compact">
+          <div className="turn-info">
+            <span className="current-turn">
+              {gameState.players[gameState.current_player_id]?.name || 'Unknown'}'s Turn
+            </span>
+            {gameState.phase === 'final_round' && (
+              <span className="final-round-badge">Final Round</span>
+            )}
+          </div>
+          
+          <div className="game-meta">
+            <span className="round-info">Round {gameState.round_number}</span>
+            <span className="phase-info">{gameState.phase.replace('_', ' ')}</span>
+            <span className="deck-count">Deck: {gameState.deck_size}</span>
+          </div>
+          
+          {otherPlayers.length > 0 && (
+            <div className="other-players-compact">
+              {otherPlayers.map(([playerId, player], index) => (
+                <span key={playerId} className="player-quick">
+                  {player.name}
+                  <span className="lives-quick">
+                    {Array.from({ length: player.lives }, (_, i) => '♥').join('')}
+                  </span>
+                  {index < otherPlayers.length - 1 && ' • '}
                 </span>
-                {index < otherPlayers.length - 1 && ' • '}
-              </span>
-            ))}
-          </div>
-        )}
-        
-        <div className="deck-info">
-          <div className="deck-remaining">
-            <strong>Cards in Deck:</strong> {gameState.deck_size}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -85,11 +82,13 @@ function GameBoard({
         </div>
       )}
 
-      <div className="players-section">
-        {/* Main Game Area - Current Player + Controls */}
-        {currentPlayerEntry && (
-          <div className="main-game-area">
-            <div className="current-player-section">
+      {/* Main Game Layout - Optimized Order */}
+      <div className="game-table">
+        {/* Player Cards and Discard Row */}
+        <div className="player-discard-row">
+          {/* Current Player Area */}
+          {currentPlayerEntry && (
+            <div className="current-player-area">
               <PlayerHand
                 key={currentPlayerEntry[0]}
                 player={currentPlayerEntry[1]}
@@ -100,37 +99,55 @@ function GameBoard({
                 gamePhase={gameState.phase}
               />
             </div>
-
-            <div className="game-controls-section">
-              <DiscardPile
-                cards={gameState.discard_pile}
-                canDrop={canDiscardCard}
-                dropRef={drop}
-                isOver={isOver}
-                onDrawFromDiscard={() => onDrawCard(true)}
-                canDrawFromDiscard={canDrawCard}
-              />
-
-              <GameActions
-                canDrawCard={canDrawCard}
-                canDiscardCard={canDiscardCard}
-                canKnock={canKnock}
-                onDrawCard={() => onDrawCard(false)}
-                onKnock={onKnock}
-                gamePhase={gameState.phase}
-                isCurrentPlayerTurn={isCurrentPlayerTurn}
-                currentTurnPlayer={gameState.players[gameState.current_player_id]}
-                gameState={gameState}
-                turnTimeRemaining={turnTimeRemaining}
-              />
-
-              <GameLog 
-                gameLog={gameState.game_log} 
-                isVisible={true}
-              />
-            </div>
+          )}
+          
+          {/* Discard Pile */}
+          <div className="discard-section">
+            <DiscardPile
+              cards={gameState.discard_pile}
+              canDrop={canDiscardCard}
+              dropRef={drop}
+              isOver={isOver}
+              onDrawFromDiscard={() => onDrawCard(true)}
+              canDrawFromDiscard={canDrawCard}
+            />
           </div>
-        )}
+        </div>
+        
+        {/* Actions and Log Row */}
+        <div className="actions-log-row">
+          {/* Game Actions */}
+          <div className="actions-section">
+            <GameActions
+              canDrawCard={canDrawCard}
+              canDiscardCard={canDiscardCard}
+              canKnock={canKnock}
+              onDrawCard={() => onDrawCard(false)}
+              onKnock={onKnock}
+              gamePhase={gameState.phase}
+              isCurrentPlayerTurn={isCurrentPlayerTurn}
+              currentTurnPlayer={gameState.players[gameState.current_player_id]}
+              gameState={gameState}
+              turnTimeRemaining={turnTimeRemaining}
+            />
+          </div>
+          
+          {/* Game Log - Desktop */}
+          <div className="desktop-log">
+            <GameLog 
+              gameLog={gameState.game_log} 
+              isVisible={true}
+            />
+          </div>
+        </div>
+        
+        {/* Mobile Game Log */}
+        <div className="mobile-game-log">
+          <GameLog 
+            gameLog={gameState.game_log} 
+            isVisible={true}
+          />
+        </div>
       </div>
 
       {gameState.winner_id && (

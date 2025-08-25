@@ -14,15 +14,41 @@
 
 /* Player Hand States */
 .player-hand.current-player {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-  padding: 0;
+  background: var(--bg-surface);
+  border: 2px solid var(--gold-primary);
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
   display: flex;
   flex-direction: column;
-  height: 100%;
-  gap: 0;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.player-hand.current-player .player-info {
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: 0;
+}
+
+.player-hand.current-player .player-name {
+  font-size: var(--font-size-lg);
+  color: var(--gold-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.player-hand.current-player .cards-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.player-hand.current-player .cards {
+  justify-content: center;
+  gap: var(--spacing-lg);
 }
 
 .player-hand.active-player {
@@ -46,17 +72,16 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   background: rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   border: 1px solid rgba(255, 215, 0, 0.2);
-  min-height: 28px;
-  max-height: 35px;
-  overflow: hidden;
+  min-height: 50px;
   backdrop-filter: blur(10px);
   transition: all var(--transition-base);
   position: relative;
   z-index: 10;
+  overflow: visible;
 }
 
 .player-info:hover {
@@ -70,6 +95,8 @@
   align-items: center;
   width: 100%;
   min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
 }
 
 .player-name {
@@ -77,37 +104,18 @@
   align-items: center;
   gap: 0.3rem;
   margin-bottom: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: 600;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex-shrink: 1;
   color: var(--text-light);
-  line-height: 1.2;
+  line-height: 1.3;
   text-shadow: 
     -1px -1px 0 var(--gold-primary),
     1px -1px 0 var(--gold-primary),
     -1px 1px 0 var(--gold-primary),
     1px 1px 0 var(--gold-primary),
     0 0 3px rgba(255, 215, 0, 0.5);
-}
-
-/* Player Badges */
-.ai-badge,
-.you-badge {
-  background: var(--secondary-color);
-  color: white;
-  padding: 0.15rem 0.4rem;
-  border-radius: 10px;
-  font-size: 0.65rem;
-  font-weight: normal;
-  flex-shrink: 0;
-}
-
-.you-badge {
-  background: var(--primary-color);
 }
 
 /* Player Stats */
@@ -118,6 +126,7 @@
   text-align: right;
   flex-shrink: 0;
   font-size: var(--font-size-sm);
+  flex-wrap: wrap;
 }
 
 .score {
@@ -220,15 +229,159 @@
   font-size: var(--font-size-md);
 }
 
+/* Cards Container */
+.cards-container {
+  width: 100%;
+}
+
+.cards {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--spacing-sm);
+}
+
+.cards-hidden {
+  opacity: 0.8;
+}
+
+/* Player Badges */
+.ai-badge,
+.you-badge {
+  background: var(--secondary-color);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: normal;
+  flex-shrink: 0;
+}
+
+.you-badge {
+  background: var(--primary-color);
+}
+
 /* Responsive Player Layout */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
+  .player-info {
+    min-height: 60px;
+    padding: var(--spacing-sm);
+  }
+  
   .player-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--spacing-xs);
+    width: 100%;
+  }
+  
+  .player-name {
+    font-size: var(--font-size-md);
+    width: 100%;
   }
   
   .player-stats {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
     text-align: left;
-    margin-top: var(--spacing-sm);
+    margin-top: 0;
+  }
+  
+  .player-hand.current-player {
+    padding: var(--spacing-sm);
+  }
+  
+  .player-hand.current-player .player-info {
+    padding: var(--spacing-sm);
+  }
+  
+  .player-hand.current-player .cards-container {
+    padding: var(--spacing-md);
+  }
+  
+  /* Mobile card layout optimized for 3-4 cards */
+  .cards {
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: center;
+    padding-bottom: var(--spacing-sm);
+    min-height: 110px; /* Ensure consistent height */
+  }
+  
+  .player-hand.current-player .cards {
+    gap: 3px;
+    padding: var(--spacing-sm);
+    margin: 0 -2px;
+    justify-content: center;
+  }
+  
+  /* Mobile game card sizing */
+  .game-card {
+    flex: 0 0 auto;
+    min-width: 60px;
+    width: 70px;
+    height: 100px;
+    max-width: 75px;
+  }
+  
+  /* When player has 4 cards, make them smaller (fallback approach) */
+  .cards .game-card:nth-child(4) ~ .game-card,
+  .cards .game-card:nth-child(4) {
+    width: 58px;
+    height: 83px;
+    min-width: 55px;
+  }
+  
+  /* Alternative: if the container has 4+ cards */
+  .cards.four-cards .game-card {
+    width: 58px;
+    height: 83px;
+    min-width: 55px;
+  }
+  
+  /* Improved discard overlay for mobile */
+  .discard-overlay {
+    font-size: 0.45rem !important;
+    padding: 1px 2px !important;
+    line-height: 1 !important;
+    bottom: 1px;
+    left: 1px;
+    right: 1px;
+    max-width: calc(100% - 2px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (min-width: 768px) {
+  .player-header {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .player-stats {
+    text-align: right;
+    margin-top: 0;
+  }
+}
+
+/* Responsive Cards Layout */
+@media (min-width: 768px) {
+  .player-hand.current-player .cards {
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md);
+  }
+}
+
+@media (min-width: 1024px) {
+  .player-hand.current-player .cards {
+    gap: var(--spacing-xl);
+    padding: var(--spacing-lg);
   }
 }

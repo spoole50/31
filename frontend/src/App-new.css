@@ -1,0 +1,276 @@
+/* App.css - Updated to use Design System */
+
+/* This file now focuses on app-specific styles only */
+/* Base styles are handled by our design system */
+
+/* === APP-SPECIFIC COMPONENTS === */
+
+/* Landing Page Styles */
+.landing-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.landing-hero {
+  max-width: 600px;
+  margin-bottom: var(--space-8);
+}
+
+.landing-hero h1 {
+  font-size: var(--text-5xl);
+  font-weight: var(--font-bold);
+  color: var(--gold-primary);
+  margin-bottom: var(--space-4);
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.landing-hero p {
+  font-size: var(--text-xl);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--space-6);
+}
+
+.landing-buttons {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Game Setup Styles */
+.game-setup {
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-xl);
+  padding: var(--space-8);
+  max-width: 500px;
+  width: 100%;
+  border: var(--border-width-2) solid var(--gold-muted);
+  box-shadow: var(--shadow-xl);
+}
+
+.game-setup h2 {
+  color: var(--gold-primary);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+.setup-section {
+  margin-bottom: var(--space-6);
+}
+
+.setup-section:last-child {
+  margin-bottom: 0;
+}
+
+.setup-section label {
+  display: block;
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+  margin-bottom: var(--space-3);
+}
+
+.setup-section input,
+.setup-section select {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--gold-muted);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.setup-section input:focus,
+.setup-section select:focus {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+}
+
+/* Player Selector */
+.player-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.player-selector label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.player-selector select {
+  min-width: 120px;
+}
+
+/* Game Status */
+.game-status {
+  text-align: center;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border-radius: var(--border-radius-lg);
+  border: var(--border-width) solid var(--gold-muted);
+  margin-bottom: var(--space-6);
+}
+
+.game-status h3 {
+  color: var(--gold-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--space-2);
+}
+
+.game-status p {
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+}
+
+/* Winner Styles */
+.winner {
+  background: linear-gradient(135deg, var(--success), #10b981) !important;
+  color: var(--text-primary) !important;
+  animation: victoryPulse 2s ease-in-out infinite;
+  border: var(--border-width-2) solid var(--gold-primary) !important;
+}
+
+@keyframes victoryPulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: var(--shadow-md);
+  }
+  50% { 
+    transform: scale(1.05);
+    box-shadow: var(--shadow-xl), var(--shadow-glow);
+  }
+}
+
+/* Loading States */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  color: var(--text-secondary);
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--bg-tertiary);
+  border-top: 3px solid var(--gold-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.error {
+  padding: var(--space-4);
+  background: var(--error);
+  color: var(--text-primary);
+  border-radius: var(--border-radius);
+  margin: var(--space-4) 0;
+  text-align: center;
+}
+
+.warning {
+  padding: var(--space-4);
+  background: var(--warning);
+  color: var(--bg-primary);
+  border-radius: var(--border-radius);
+  margin: var(--space-4) 0;
+  text-align: center;
+}
+
+/* === MOBILE RESPONSIVE === */
+@media (max-width: 640px) {
+  .landing-page {
+    padding: var(--space-4);
+  }
+  
+  .landing-hero h1 {
+    font-size: var(--text-4xl);
+  }
+  
+  .landing-hero p {
+    font-size: var(--text-lg);
+  }
+  
+  .landing-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .game-setup {
+    padding: var(--space-6);
+    margin: var(--space-4);
+  }
+  
+  .player-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .player-selector label {
+    justify-content: space-between;
+  }
+}
+
+/* === TABLET RESPONSIVE === */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .landing-hero h1 {
+    font-size: var(--text-5xl);
+  }
+  
+  .landing-buttons {
+    gap: var(--space-6);
+  }
+  
+  .game-setup {
+    max-width: 600px;
+  }
+}
+
+/* === ACCESSIBILITY === */
+@media (prefers-reduced-motion: reduce) {
+  .winner {
+    animation: none;
+  }
+  
+  .loading-spinner {
+    animation: none;
+  }
+  
+  .btn:hover {
+    transform: none;
+  }
+}
+
+/* === HIGH CONTRAST MODE === */
+@media (prefers-contrast: high) {
+  .game-setup {
+    border-width: 3px;
+  }
+  
+  .setup-section input,
+  .setup-section select {
+    border-width: 2px;
+  }
+}

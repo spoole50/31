@@ -60,7 +60,8 @@ function Card({ suit, value, handIndex, canDrag = true, onDiscard, isDiscardable
       />
       {isDiscardable && (
         <div className="discard-overlay">
-          Click to discard
+          <span className="discard-text-desktop">Click or drag to discard</span>
+          <span className="discard-text-mobile">Tap/Drag</span>
         </div>
       )}
     </div>

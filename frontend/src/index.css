@@ -1,10 +1,21 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Main CSS Entry Point - Import Design System */
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
-}
+/* 1. Design System Foundation */
+@import './styles/design-system.css';
+
+/* 2. Base Styles */
+@import './styles/base.css';
+
+/* 3. Layout */
+@import './styles/layout.css';
+
+/* 4. Components */
+@import './styles/components/buttons.css';
+@import './styles/components/cards.css';
+@import './styles/components/forms.css';
+@import './styles/components/modals.css';
+@import './styles/components/game.css';
+@import './styles/components/player.css';
+
+/* 5. Utilities */
+@import './styles/utilities.css';
