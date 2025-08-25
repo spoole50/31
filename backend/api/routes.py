@@ -44,7 +44,7 @@ def read_root():
     return jsonify({"message": "Welcome to the 31 Card Game Backend!", "version": "1.0.0"})
 
 
-@game_routes.route("/api/game-data")
+@game_routes.route("/game-data")
 def get_game_data():
     """Legacy endpoint for backward compatibility"""
     deck = create_deck()
@@ -53,7 +53,7 @@ def get_game_data():
     return jsonify({"hands": hands, "remainingDeck": remaining_deck})
 
 
-@game_routes.route("/api/games", methods=["POST"])
+@game_routes.route("/games", methods=["POST"])
 def create_game():
     """Create a new game"""
     try:
@@ -80,16 +80,16 @@ def create_game():
         return jsonify({"detail": str(e)}), 400
 
 
-@game_routes.route("/api/games/<game_id>")
-def get_game(game_id: str):
+@game_routes.route("/games/<game_id>")
+def get_game(game_id):
     """Get current game state"""
     if game_id not in games:
         return jsonify({"detail": "Game not found"}), 404
     return jsonify(game_state_to_dict(games[game_id]))
 
 
-@game_routes.route("/api/games/<game_id>/draw", methods=["POST"])
-def draw_card_endpoint(game_id: str):
+@game_routes.route("/games/<game_id>/draw", methods=["POST"])
+def draw_card_endpoint(game_id):
     """Player draws a card"""
     if game_id not in games:
         return jsonify({"detail": "Game not found"}), 404
@@ -110,8 +110,8 @@ def draw_card_endpoint(game_id: str):
     return jsonify(game_state_to_dict(game_state))
 
 
-@game_routes.route("/api/games/<game_id>/discard", methods=["POST"])
-def discard_card_endpoint(game_id: str):
+@game_routes.route("/games/<game_id>/discard", methods=["POST"])
+def discard_card_endpoint(game_id):
     """Player discards a card"""
     if game_id not in games:
         return jsonify({"detail": "Game not found"}), 404
@@ -132,8 +132,8 @@ def discard_card_endpoint(game_id: str):
     return jsonify(game_state_to_dict(game_state))
 
 
-@game_routes.route("/api/games/<game_id>/knock", methods=["POST"])
-def knock_endpoint(game_id: str):
+@game_routes.route("/games/<game_id>/knock", methods=["POST"])
+def knock_endpoint(game_id):
     """Player knocks"""
     if game_id not in games:
         return jsonify({"detail": "Game not found"}), 404
@@ -153,7 +153,7 @@ def knock_endpoint(game_id: str):
     return jsonify(game_state_to_dict(game_state))
 
 
-@game_routes.route("/api/games")
+@game_routes.route("/games")
 def list_games():
     """List all active games"""
     return jsonify({
@@ -169,8 +169,8 @@ def list_games():
     })
 
 
-@game_routes.route("/api/games/<game_id>", methods=["DELETE"])
-def delete_game(game_id: str):
+@game_routes.route("/games/<game_id>", methods=["DELETE"])
+def delete_game(game_id):
     """Delete a game"""
     if game_id not in games:
         return jsonify({"detail": "Game not found"}), 404
@@ -179,8 +179,8 @@ def delete_game(game_id: str):
     return jsonify({"message": "Game deleted successfully"})
 
 
-@game_routes.route("/api/games/<game_id>/ai-turn", methods=["POST"])
-def ai_turn_endpoint(game_id: str):
+@game_routes.route("/games/<game_id>/ai-turn", methods=["POST"])
+def ai_turn_endpoint(game_id):
     """Process AI turn"""
     if game_id not in games:
         return jsonify({"detail": "Game not found"}), 404
