@@ -8,6 +8,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
+      - key: FRONTEND_URL
+        value: https://card-game-31-frontend.onrender.com
 
   - type: web
     name: card-game-31-frontend

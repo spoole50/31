@@ -18,8 +18,16 @@ from ai.engine import advanced_ai_turn
 games: Dict[str, GameState] = {}
 
 # Create blueprint for game routes
-game_routes = Blueprint('game_routes', __name__)
+game_routes = Blueprint('game_routes', __name__, url_prefix='/api')
 
+@game_routes.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint to verify API is running"""
+    return jsonify({
+        'status': 'healthy',
+        'message': '31 Card Game API is running',
+        'cors_test': True
+    })
 
 @game_routes.route("/")
 def read_root():
@@ -180,3 +188,13 @@ def ai_turn_endpoint(game_id: str):
         return jsonify({"detail": "AI turn failed"}), 400
     
     return jsonify(game_state_to_dict(game_state))
+
+
+@game_routes.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint to verify API is running"""
+    return jsonify({
+        'status': 'healthy',
+        'message': '31 Card Game API is running',
+        'cors_test': True
+    })

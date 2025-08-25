@@ -40,6 +40,7 @@ def create_app():
     app = Flask(__name__)
     
     # Configure CORS for frontend communication
+    # Allow localhost for development
     allowed_origins = [
         "http://localhost:3000", 
         "http://127.0.0.1:3000",
@@ -50,7 +51,18 @@ def create_app():
     if frontend_url:
         allowed_origins.append(frontend_url)
     
-    CORS(app, origins=allowed_origins)
+    # For Render deployment, allow the expected frontend URL
+    if os.environ.get('RENDER'):
+        allowed_origins.append("https://card-game-31-frontend.onrender.com")
+    
+    print(f"CORS allowed origins: {allowed_origins}")  # Debug logging
+    
+    # Configure CORS with proper headers
+    CORS(app, 
+         origins=allowed_origins,
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization'],
+         supports_credentials=True)
     
     # Register blueprints
     app.register_blueprint(game_routes)
