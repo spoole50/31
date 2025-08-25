@@ -7,7 +7,6 @@
     "backend"
   ],
   "scripts": {
-    "install": "npm install --prefix frontend && pip install -r backend/requirements.txt",
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "start:frontend": "cd frontend && npm start",
     "start:backend": "cd backend && python main.py",
