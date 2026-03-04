@@ -6,7 +6,6 @@ Supports multiple players, different AI difficulty levels, and real-time gamepla
 """
 
 import os
-import re
 import threading
 import time
 from flask import Flask, request, make_response
@@ -40,28 +39,9 @@ def create_app():
     """Application factory pattern for Flask app"""
     app = Flask(__name__)
     
-    # Configure CORS for frontend communication
-    # Allow localhost for development
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        # All AWS Amplify deployments (main branch + preview branches)
-        re.compile(r'https://.*\.amplifyapp\.com'),
-    ]
-
-    # Add any explicit production URL from environment variable
-    frontend_url = os.environ.get('FRONTEND_URL')
-    if frontend_url:
-        allowed_origins.append(frontend_url)
-
-    amplify_url = os.environ.get('AMPLIFY_URL')
-    if amplify_url:
-        allowed_origins.append(amplify_url)
-
-    print(f"CORS allowed origins: {allowed_origins}")
-
+    # Configure CORS — open to all origins (no user auth in this app)
     CORS(app,
-         origins=allowed_origins,
+         origins="*",
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
          supports_credentials=False)
