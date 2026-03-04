@@ -6,6 +6,7 @@ Supports multiple players, different AI difficulty levels, and real-time gamepla
 """
 
 import os
+import re
 import threading
 import time
 from flask import Flask, request, make_response
@@ -42,17 +43,18 @@ def create_app():
     # Configure CORS for frontend communication
     # Allow localhost for development
     allowed_origins = [
-        "http://localhost:3000", 
+        "http://localhost:3000",
         "http://127.0.0.1:3000",
+        # All AWS Amplify deployments (main branch + preview branches)
+        re.compile(r'https://.*\.amplifyapp\.com'),
     ]
-    
-    # Add production frontend URL from environment variable (works for Amplify, App Runner, etc.)
+
+    # Add any explicit production URL from environment variable
     frontend_url = os.environ.get('FRONTEND_URL')
     if frontend_url:
         allowed_origins.append(frontend_url)
 
-    # AWS Amplify — supports wildcard subdomains for branch previews
-    amplify_url = os.environ.get('AMPLIFY_URL')  # e.g. https://main.xxxxx.amplifyapp.com
+    amplify_url = os.environ.get('AMPLIFY_URL')
     if amplify_url:
         allowed_origins.append(amplify_url)
 
