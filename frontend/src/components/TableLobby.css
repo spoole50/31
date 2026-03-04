@@ -14,21 +14,7 @@
   background: var(--bg-panel);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 215, 0, 0.2);
-  position: relative;
-}
-
-.lobby-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, transparent 50%, rgba(255, 215, 0, 0.05) 100%);
-  border-radius: var(--radius-xl);
-  pointer-events: none;
 }
 
 .lobby-header h2 {
@@ -36,21 +22,12 @@
   font-size: var(--font-size-3xl);
   margin-bottom: var(--spacing-md);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  position: relative;
-  z-index: 1;
 }
 
 .lobby-header p {
   color: var(--text-secondary);
   font-size: var(--font-size-lg);
   margin-bottom: var(--spacing-lg);
-  position: relative;
-  z-index: 1;
-}
-
-.back-btn {
-  position: relative;
-  z-index: 1;
 }
 
 .table-header {
@@ -153,10 +130,6 @@
   color: white;
 }
 
-.leave-table-btn span {
-  margin-right: var(--spacing-xs);
-}
-
 /* Error Messages */
 .error-message {
   background: linear-gradient(135deg, var(--danger-color), var(--secondary-dark));
@@ -186,20 +159,6 @@
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl);
   border: 1px solid rgba(255, 215, 0, 0.2);
-  position: relative;
-}
-
-.create-section::before,
-.join-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.03) 0%, transparent 50%, rgba(255, 215, 0, 0.03) 100%);
-  border-radius: var(--radius-xl);
-  pointer-events: none;
 }
 
 .create-section h3,
@@ -208,8 +167,6 @@
   font-size: var(--font-size-xl);
   margin-bottom: var(--spacing-lg);
   text-align: center;
-  position: relative;
-  z-index: 1;
 }
 
 /* Players Section */
@@ -251,6 +208,22 @@
   font-weight: 500;
 }
 
+.ai-difficulty-select {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.ai-difficulty-select:focus {
+  outline: none;
+  border-color: var(--gold-primary);
+}
+
 .btn-ai {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -277,8 +250,8 @@
 
 /* Player Cards */
 .player-card {
-  background: white;
-  border: 2px solid var(--bg-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-muted);
   border-radius: var(--radius-lg);
   padding: var(--spacing-sm);
   display: flex;
@@ -297,19 +270,19 @@
 }
 
 .player-card.current-player {
-  border-color: var(--primary-color);
-  background: linear-gradient(135deg, var(--primary-light) 0%, #fff9c4 100%);
+  border-color: var(--gold-primary);
+  background: rgba(255, 215, 0, 0.08);
 }
 
 .player-card.ai-player {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #f8f9ff 0%, #e8edff 100%);
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.08);
 }
 
 .player-card.empty-slot {
   border-style: dashed;
-  background: var(--bg-muted);
-  opacity: 0.7;
+  background: var(--bg-primary);
+  opacity: 0.6;
 }
 
 .player-avatar {
@@ -348,8 +321,8 @@
 }
 
 .player-name {
-  font-weight: bold;
-  color: var(--text-dark);
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: var(--spacing-xs);
   font-size: var(--font-size-sm);
   white-space: nowrap;
@@ -480,11 +453,6 @@
   padding: var(--spacing-xl);
 }
 
-.game-ready-icon {
-  font-size: 4rem;
-  margin-bottom: var(--spacing-md);
-}
-
 .enter-game-btn {
   background: white;
   color: var(--success-color);
@@ -501,31 +469,27 @@
   box-shadow: var(--shadow-lg);
 }
 
-.enter-game-btn span {
-  margin-right: var(--spacing-sm);
-}
-
 /* Tables List */
 .tables-list {
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  margin-bottom: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-sm);
 }
 
 .table-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 15px;
-  border-bottom: 1px solid #e9ecef;
-  background: white;
-  transition: background-color 0.3s ease;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-secondary);
+  transition: background-color 0.2s ease;
 }
 
 .table-item:hover {
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
 }
 
 .table-item:last-child {
@@ -540,48 +504,50 @@
 
 .table-name {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .table-players,
 .table-status {
-  font-size: 0.9em;
-  color: #6c757d;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
 }
 
 .table-item button {
-  background: #17a2b8;
+  background: var(--info);
   color: white;
   border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 0.9em;
-  transition: all 0.3s ease;
+  font-size: var(--font-size-sm);
+  transition: all 0.2s ease;
 }
 
 .table-item button:hover:not(:disabled) {
-  background: #138496;
+  opacity: 0.85;
 }
 
 .table-item button:disabled {
-  background: #6c757d;
+  background: var(--bg-muted);
   cursor: not-allowed;
 }
 
 .refresh-btn {
-  background: #6f42c1;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--bg-muted);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
   cursor: pointer;
   width: 100%;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  font-size: var(--font-size-sm);
 }
 
 .refresh-btn:hover {
-  background: #5a32a3;
+  border-color: var(--gold-primary);
+  color: var(--gold-primary);
 }
 
 /* Action Buttons */
@@ -589,42 +555,41 @@
 .lobby-actions {
   display: flex;
   justify-content: center;
-  gap: 15px;
-  padding: 30px 20px;
-  border-top: 1px solid #e9ecef;
-  margin-top: 20px;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) 0;
+  margin-top: var(--spacing-md);
 }
 
 .leave-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
+  background: transparent;
+  color: var(--danger-color);
+  border: 1px solid var(--danger-color);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .leave-btn:hover:not(:disabled) {
-  background: #c82333;
-  transform: translateY(-1px);
+  background: var(--danger-color);
+  color: white;
 }
 
 .back-btn {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--bg-muted);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .back-btn:hover {
-  background: #5a6268;
-  transform: translateY(-1px);
+  border-color: var(--text-muted);
+  color: var(--text-primary);
 }
 
 /* Responsive Design */

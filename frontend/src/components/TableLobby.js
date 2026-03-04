@@ -4,7 +4,6 @@ import CreateTableForm from './CreateTableForm';
 import PublicTablesList from './PublicTablesList';
 import CurrentTableView from './CurrentTableView';
 import JoinTableForm from './JoinTableForm';
-import TableStatus from './TableStatus';
 import './TableLobby.css';
 
 const TableLobby = ({ playerId, playerName, onGameStart, onBackToMenu }) => {
@@ -45,14 +44,6 @@ const TableLobby = ({ playerId, playerName, onGameStart, onBackToMenu }) => {
   if (currentTable) {
     return (
       <div className="table-lobby">
-        <TableStatus
-          currentTable={currentTable}
-          playerName={playerName}
-          onStartGame={startGame}
-          onLeaveTable={leaveTable}
-          loading={loading}
-        />
-
         {error && <div className="error-message">{error}</div>}
 
         <CurrentTableView

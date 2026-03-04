@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const CurrentTableView = ({ 
   table, 
@@ -52,14 +52,12 @@ const CurrentTableView = ({
     return (
       <div className="current-table game-ready">
         <div className="game-ready-card">
-          <div className="game-ready-icon">🎮</div>
-          <h3>Game is Ready!</h3>
-          <p>All players have joined. The game is about to begin!</p>
-          <button 
+          <h3>Game Ready</h3>
+          <p>All players have joined. The game is about to begin.</p>
+          <button
             className="btn btn-success btn-lg enter-game-btn"
             onClick={handleGameStart}
           >
-            <span>🚀</span>
             Enter Game
           </button>
         </div>
@@ -82,30 +80,26 @@ const CurrentTableView = ({
             </span>
           </div>
         </div>
-        <button 
+        <button
           className="btn btn-outline-danger btn-sm leave-table-btn"
           onClick={onLeaveTable}
           disabled={loading}
         >
-          <span>🚪</span>
           Leave Table
         </button>
       </div>
 
       <div className="table-stats">
         <div className="stat-item">
-          <span className="stat-icon">👥</span>
           <span className="stat-label">Players</span>
           <span className="stat-value">{playerCount}/{table.max_players}</span>
         </div>
         <div className="stat-item">
-          <span className="stat-icon">👑</span>
           <span className="stat-label">Host</span>
           <span className="stat-value">{table.players.find(p => p.id === table.host_id)?.name || 'Unknown'}</span>
         </div>
         {table.is_private && (
           <div className="stat-item">
-            <span className="stat-icon">🔒</span>
             <span className="stat-label">Access</span>
             <span className="stat-value">Private</span>
           </div>
@@ -116,41 +110,7 @@ const CurrentTableView = ({
         <div className="players-header">
           <h4>Players ({playerCount}/{table.max_players})</h4>
           {canAddAI && (
-            <div className="ai-controls">
-              <span className="ai-label">Add AI:</span>
-              <button 
-                className="btn btn-ai btn-sm"
-                onClick={() => handleAddAI('easy')}
-                disabled={loading}
-                title="Add Easy AI"
-              >
-                🤖 Easy
-              </button>
-              <button 
-                className="btn btn-ai btn-sm"
-                onClick={() => handleAddAI('medium')}
-                disabled={loading}
-                title="Add Medium AI"
-              >
-                🤖 Medium
-              </button>
-              <button 
-                className="btn btn-ai btn-sm"
-                onClick={() => handleAddAI('hard')}
-                disabled={loading}
-                title="Add Hard AI"
-              >
-                🤖 Hard
-              </button>
-              <button 
-                className="btn btn-ai btn-sm"
-                onClick={() => handleAddAI('expert')}
-                disabled={loading}
-                title="Add Expert AI"
-              >
-                🤖 Expert
-              </button>
-            </div>
+            <AIDifficultyControls onAddAI={handleAddAI} loading={loading} />
           )}
         </div>
         
@@ -166,12 +126,7 @@ const CurrentTableView = ({
           
           {/* Empty slots */}
           {Array.from({ length: table.max_players - playerCount }, (_, index) => (
-            <EmptyPlayerSlot 
-              key={`empty-${index}`} 
-              showAddAI={canAddAI && index === 0}
-              onAddAI={handleAddAI}
-              loading={loading}
-            />
+            <EmptyPlayerSlot key={`empty-${index}`} />
           ))}
         </div>
       </div>
@@ -179,12 +134,11 @@ const CurrentTableView = ({
       <div className="table-actions">
         {canStartGame && (
           <div className="start-game-section">
-            <button 
+            <button
               className={`btn btn-success btn-lg start-game-btn ${loading ? 'btn-loading' : ''}`}
               onClick={handleStartGame}
               disabled={loading}
             >
-              <span>🎮</span>
               Start Game ({playerCount} players)
             </button>
             <p className="game-info">
@@ -197,10 +151,7 @@ const CurrentTableView = ({
           <div className="waiting-section">
             {isOwner ? (
               <div className="waiting-host">
-                <p className="waiting-message">
-                  <span>⏳</span>
-                  Need at least 2 players to start the game
-                </p>
+                <p className="waiting-message">Need at least 2 players to start the game</p>
                 {playerCount < 2 && (
                   <p className="suggestion">
                     Share the invite code <code>{table.invite_code}</code> with friends or add AI players above
@@ -209,10 +160,7 @@ const CurrentTableView = ({
               </div>
             ) : (
               <div className="waiting-player">
-                <p className="waiting-message">
-                  <span>⏳</span>
-                  Waiting for the host to start the game...
-                </p>
+                <p className="waiting-message">Waiting for the host to start the game...</p>
               </div>
             )}
           </div>
@@ -225,15 +173,12 @@ const CurrentTableView = ({
 const PlayerCard = ({ player, isOwner, isCurrentPlayer }) => {
   const isAI = player.is_ai;
   const aiDifficulty = player.ai_difficulty;
-  
+  const initial = player.name.charAt(0).toUpperCase();
+
   return (
     <div className={`player-card ${isCurrentPlayer ? 'current-player' : ''} ${isAI ? 'ai-player' : 'human-player'}`}>
       <div className="player-avatar">
-        {isAI ? (
-          <span className="ai-avatar">🤖</span>
-        ) : (
-          <span className="human-avatar">{player.name.charAt(0).toUpperCase()}</span>
-        )}
+        <span className={isAI ? 'ai-avatar' : 'human-avatar'}>{initial}</span>
       </div>
       <div className="player-info">
         <div className="player-name">
@@ -241,9 +186,8 @@ const PlayerCard = ({ player, isOwner, isCurrentPlayer }) => {
           {isCurrentPlayer && <span className="you-badge">(You)</span>}
         </div>
         <div className="player-badges">
-          {isOwner && <span className="badge badge-owner">👑 Host</span>}
-          {isAI && <span className="badge badge-ai">🤖 {aiDifficulty}</span>}
-          {!isAI && <span className="badge badge-human">👤 Human</span>}
+          {isOwner && <span className="badge badge-owner">Host</span>}
+          {isAI && <span className="badge badge-ai">{aiDifficulty}</span>}
         </div>
       </div>
       <div className="player-status">
@@ -253,29 +197,40 @@ const PlayerCard = ({ player, isOwner, isCurrentPlayer }) => {
   );
 };
 
-const EmptyPlayerSlot = ({ showAddAI, onAddAI, loading }) => {
+const EmptyPlayerSlot = () => (
+  <div className="player-card empty-slot">
+    <div className="player-avatar empty">
+      <span className="empty-avatar">+</span>
+    </div>
+    <div className="player-info">
+      <div className="player-name empty">Open slot</div>
+    </div>
+  </div>
+);
+
+const AIDifficultyControls = ({ onAddAI, loading }) => {
+  const [difficulty, setDifficulty] = useState('medium');
   return (
-    <div className="player-card empty-slot">
-      <div className="player-avatar empty">
-        <span className="empty-avatar">+</span>
-      </div>
-      <div className="player-info">
-        <div className="player-name empty">
-          {showAddAI ? 'Add Player or AI' : 'Waiting for player...'}
-        </div>
-        {showAddAI && (
-          <div className="empty-slot-actions">
-            <button 
-              className="btn btn-ai-mini"
-              onClick={() => onAddAI('medium')}
-              disabled={loading}
-              title="Add AI Player"
-            >
-              + AI
-            </button>
-          </div>
-        )}
-      </div>
+    <div className="ai-controls">
+      <span className="ai-label">Add AI:</span>
+      <select
+        value={difficulty}
+        onChange={(e) => setDifficulty(e.target.value)}
+        className="ai-difficulty-select"
+        disabled={loading}
+      >
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+        <option value="expert">Expert</option>
+      </select>
+      <button
+        className="btn btn-ai btn-sm"
+        onClick={() => onAddAI(difficulty)}
+        disabled={loading}
+      >
+        Add
+      </button>
     </div>
   );
 };

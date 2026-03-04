@@ -28,7 +28,6 @@ const JoinTableForm = ({ onJoinByCode, onCancel, loading }) => {
 
   return (
     <div className="join-form">
-      <h3>Join Table by Code</h3>
       <form onSubmit={handleSubmit} className="form-inline">
         <div className="form-group">
           <label htmlFor="joinCode">Invite Code:</label>
