@@ -1,5 +1,12 @@
 # Deployment Guide
 
+## Live URLs
+
+| | URL |
+|---|---|
+| Frontend | https://31.spoole.fyi |
+| Backend API | https://xspmedirzf.us-east-1.awsapprunner.com |
+
 ## Architecture
 
 | Layer | Service | Notes |
@@ -117,9 +124,8 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 4. Service settings:
    - Port: `8000`
    - CPU: 0.25 vCPU / Memory: 0.5 GB
-5. Environment variables — add `AMPLIFY_URL` (fill in after Step 7)
-6. Click **Create & deploy** (~3 min)
-7. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
+5. Click **Create & deploy** (~3 min)
+6. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
 
 ### Step 6 — Deploy the frontend on Amplify
 
@@ -135,15 +141,8 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
    | `REACT_APP_API_URL` | `https://xxxxxxxx.us-east-1.awsapprunner.com` |
 
 5. Click **Save and deploy** (~2 min)
-6. Copy your Amplify URL: `https://main.abcdefg.amplifyapp.com`
 
-### Step 7 — Add CORS env var to App Runner
-
-1. **App Runner → your service → Configuration → Environment variables**
-2. Set `AMPLIFY_URL` = `https://main.abcdefg.amplifyapp.com`
-3. Click **Deploy**
-
-### Step 8 — Smoke test
+### Step 7 — Smoke test
 
 ```bash
 curl https://xxxxxxxx.us-east-1.awsapprunner.com/api/health
@@ -176,7 +175,6 @@ Open your Amplify URL and start a local game to confirm end-to-end connectivity.
 ## Production Checklist
 
 - [ ] `REACT_APP_API_URL` set correctly in Amplify env vars
-- [ ] `AMPLIFY_URL` set correctly in App Runner env vars
 - [ ] CORS working — test from browser console (no blocked requests)
 - [ ] Backend health endpoint returns 200
 - [ ] Consider replacing in-memory game state with Redis/DynamoDB for persistence across redeploys
