@@ -146,24 +146,16 @@ function GameSetup({ onCreateGame, error, onBack }) {
                         value={aiDifficulties[index] || 'medium'}
                         onChange={(e) => updateAiDifficulty(index, e.target.value)}
                       >
-                        <option value="easy">Easy 😊 - Makes some mistakes</option>
-                        <option value="medium">Medium 🤔 - Balanced strategy</option>
-                        <option value="hard">Hard 😠 - Smart and competitive</option>
-                        <option value="expert">Expert 🤖 - Very challenging</option>
+                        <option value="easy">Easy — Makes some mistakes</option>
+                        <option value="medium">Medium — Balanced strategy</option>
+                        <option value="hard">Hard — Smart and competitive</option>
+                        <option value="expert">Expert — Very challenging</option>
                       </select>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          <div className="section">
-            <div className="game-summary">
-              <p><strong>Total Players:</strong> {playerNames.length + numAiPlayers}</p>
-              <p><strong>Human Players:</strong> {playerNames.length}</p>
-              <p><strong>AI Players:</strong> {numAiPlayers}</p>
-            </div>
           </div>
 
           <div className="section">
@@ -195,18 +187,6 @@ function GameSetup({ onCreateGame, error, onBack }) {
           </div>
         </form>
 
-        <div className="rules-summary">
-          <h3>Quick Rules Summary</h3>
-          <ul>
-            <li>Goal: Get the highest total value in the same suit</li>
-            <li>Perfect score: 31 points (automatic win)</li>
-            <li>Three of a kind also counts as 30 points</li>
-            <li>Each player starts with 3 lives</li>
-            <li>Lowest score each round loses a life</li>
-            <li>Last player standing wins!</li>
-          </ul>
-        </div>
-        
         <RulesModal 
           isOpen={showRules} 
           onClose={() => setShowRules(false)} 

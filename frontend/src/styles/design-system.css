@@ -200,6 +200,14 @@
 
   /* Extended shadows */
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+
+  /* Additional colour aliases */
+  --warning-color:   var(--warning);          /* #f59e0b */
+  --secondary-color: var(--error);            /* #ef4444 */
+  --bg-muted:        var(--bg-tertiary);      /* #2d2d2d */
+  --primary-light:   rgba(255, 215, 0, 0.1);
+  --bg-card:         var(--bg-surface);       /* #1e1e1e */
+  --radius-round:    var(--border-radius-full); /* 9999px */
 }
 
 /* === RESPONSIVE DESIGN === */
