@@ -18,8 +18,6 @@ function GameActions({
   const effectiveCanKnock = canKnock && !isTimedOut;
   return (
     <div className="game-actions">
-      <h3>Actions</h3>
-      
       <div className="action-buttons">
         <button 
           onClick={onDrawCard}
@@ -38,50 +36,46 @@ function GameActions({
           disabled={!effectiveCanKnock}
           className={`btn ${effectiveCanKnock ? 'btn-warning' : 'btn-disabled'}`}
           title={
-            isTimedOut ? 'Turn timed out - action disabled' : 
+            isTimedOut ? 'Turn timed out' : 
             effectiveCanKnock ? 'Knock to start final round' : 'Cannot knock now'
           }
         >
-          🔔 Knock
+          Knock
         </button>
       </div>
 
       <div className="action-status">
         {isTimedOut && (
           <div className="timeout-message">
-            ⏰ Your turn has timed out! Waiting for server to process...
+            Turn timed out — waiting for server...
           </div>
         )}
         
         {!isCurrentPlayerTurn && currentTurnPlayer && (
           <div className="waiting-message">
             {currentTurnPlayer.is_ai ? (
-              <div>
-                🤖 <strong>{currentTurnPlayer.name}</strong> (AI) is thinking...
-              </div>
+              <span><strong>{currentTurnPlayer.name}</strong> is thinking...</span>
             ) : (
-              <div>
-                👤 <strong>{currentTurnPlayer.name}</strong>'s turn
-              </div>
+              <span><strong>{currentTurnPlayer.name}</strong>'s turn</span>
             )}
           </div>
         )}
         
         {isCurrentPlayerTurn && !isTimedOut && canDrawCard && (
           <div className="instruction">
-            🎯 Your turn: Draw a card
+            Draw a card to continue
           </div>
         )}
         
         {isCurrentPlayerTurn && !isTimedOut && canDiscardCard && (
           <div className="instruction">
-            🎯 Your turn: Discard a card
+            Choose a card to discard
           </div>
         )}
         
         {gamePhase === 'final_round' && (
           <div className="final-round-warning">
-            ⚠️ Final Round - Everyone gets one more turn!
+            Final Round — one more turn each
           </div>
         )}
       </div>

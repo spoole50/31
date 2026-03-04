@@ -18,7 +18,7 @@ const GameLog = ({ gameLog, isVisible = true }) => {
   return (
     <div className="game-log">
       <div className="game-log-header">
-        <h3>🎮 Game Log</h3>
+        <h3>Activity</h3>
       </div>
       <div className="game-log-content" ref={logRef}>
         {gameLog && Array.isArray(gameLog) && gameLog.length > 0 ? (

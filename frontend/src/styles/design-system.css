@@ -164,6 +164,42 @@
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
+
+  /* === LEGACY ALIASES (backwards compat with older component CSS) === */
+
+  /* Spacing */
+  --spacing-xs:  0.25rem;   /* space-1 */
+  --spacing-sm:  0.75rem;   /* space-3 */
+  --spacing-md:  1rem;      /* space-4 */
+  --spacing-lg:  1.5rem;    /* space-6 */
+  --spacing-xl:  2rem;      /* space-8 */
+  --spacing-2xl: 2.5rem;    /* space-10 */
+  --spacing-3xl: 3rem;      /* space-12 */
+  --spacing-4xl: 4rem;      /* space-16 */
+
+  /* Font sizes */
+  --font-size-xs:  0.75rem;   /* text-xs */
+  --font-size-sm:  0.875rem;  /* text-sm */
+  --font-size-lg:  1.125rem;  /* text-lg */
+  --font-size-xl:  1.25rem;   /* text-xl */
+  --font-size-2xl: 1.5rem;    /* text-2xl */
+  --font-size-3xl: 1.875rem;  /* text-3xl */
+
+  /* Border radii */
+  --radius-sm:  var(--border-radius-sm);  /* 4px  */
+  --radius-md:  var(--border-radius);     /* 8px  */
+  --radius-xl:  var(--border-radius-xl);  /* 16px */
+
+  /* Semantic colour aliases */
+  --bg-panel:       #1e1e1e;                /* bg-surface  */
+  --text-light:     #ffffff;               /* text-primary */
+  --danger-color:   var(--error);          /* #ef4444 */
+  --success-color:  var(--success);        /* #10b981 */
+  --secondary-dark: #b91c1c;
+  --border-light:   rgba(255, 215, 0, 0.2);
+
+  /* Extended shadows */
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
 /* === RESPONSIVE DESIGN === */

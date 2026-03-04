@@ -46,25 +46,23 @@ def create_app():
         "http://127.0.0.1:3000",
     ]
     
-    # Add production frontend URL from environment variable
+    # Add production frontend URL from environment variable (works for Amplify, App Runner, etc.)
     frontend_url = os.environ.get('FRONTEND_URL')
     if frontend_url:
         allowed_origins.append(frontend_url)
-    
-    # For Render deployment, allow the expected frontend URL
-    if os.environ.get('RENDER'):
-        allowed_origins.append("https://card-game-31-frontend.onrender.com")
-    
-    # Configure CORS for frontend communication
-    # Temporarily allow all origins for debugging
-    print(f"CORS allowed origins: {allowed_origins}")  # Debug logging
-    
-    # More permissive CORS for debugging
-    CORS(app, 
-         origins="*",  # Temporarily allow all origins
+
+    # AWS Amplify — supports wildcard subdomains for branch previews
+    amplify_url = os.environ.get('AMPLIFY_URL')  # e.g. https://main.xxxxx.amplifyapp.com
+    if amplify_url:
+        allowed_origins.append(amplify_url)
+
+    print(f"CORS allowed origins: {allowed_origins}")
+
+    CORS(app,
+         origins=allowed_origins,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
-         supports_credentials=False)  # Can't use credentials with wildcard origin
+         supports_credentials=False)
     
     # Register blueprints
     app.register_blueprint(game_routes)

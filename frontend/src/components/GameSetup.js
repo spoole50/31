@@ -69,7 +69,7 @@ function GameSetup({ onCreateGame, error, onBack }) {
   return (
     <div className="game-setup">
       <div className="setup-container">
-        <h2 className="setup-title">🎰 Game Setup</h2>
+        <h2 className="setup-title">Game Setup</h2>
         
         {error && (
           <div className="setup-error">
@@ -112,7 +112,7 @@ function GameSetup({ onCreateGame, error, onBack }) {
                 onClick={addPlayer}
                 className="btn add-player-btn"
               >
-                ➕ Add Human Player
+                Add Player
               </button>
             )}
           </div>
@@ -170,7 +170,7 @@ function GameSetup({ onCreateGame, error, onBack }) {
             <div className="setup-buttons">
               <button 
                 type="submit" 
-                className="btn btn-primary btn-large"
+                className="btn btn-primary btn-lg"
                 disabled={playerNames.length + numAiPlayers < 2 || playerNames.length + numAiPlayers > 8}
               >
                 Start Game
@@ -180,7 +180,7 @@ function GameSetup({ onCreateGame, error, onBack }) {
                 onClick={() => setShowRules(true)}
                 className="btn btn-secondary"
               >
-                📖 View Full Rules
+                View Rules
               </button>
               {onBack && (
                 <button 
@@ -188,7 +188,7 @@ function GameSetup({ onCreateGame, error, onBack }) {
                   onClick={onBack}
                   className="btn btn-secondary"
                 >
-                  ← Back to Menu
+                  Back
                 </button>
               )}
             </div>

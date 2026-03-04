@@ -32,114 +32,86 @@ const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
   return (
     <div className="main-menu">
       <div className="menu-container">
-        <div className="game-title">
+        <header className="game-title">
           <h1>31</h1>
-          <p>The classic card game where getting closest to 31 wins!</p>
-        </div>
+          <p>Build the highest same-suit hand. Last player standing wins.</p>
+        </header>
 
         <div className="menu-options">
-          <div className="game-mode-section">
-            <h2>Choose Game Mode</h2>
-            
-            <div className="mode-options">
-              <div className="mode-option local-mode">
-                <div className="mode-content">
-                  <h3>🎮 Local Game</h3>
-                  <p>Play immediately with AI opponents</p>
-                  <ul>
-                    <li>Quick start</li>
-                    <li>Multiple AI difficulty levels</li>
-                    <li>No internet required</li>
-                  </ul>
-                </div>
-                <button 
-                  onClick={handleLocalGameClick}
+          <div className="mode-options">
+
+            <div className="mode-option local-mode">
+              <div className="mode-suit">♠</div>
+              <div className="mode-content">
+                <h3>Local Game</h3>
+                <p>Play against AI opponents — no setup needed.</p>
+              </div>
+              <button
+                onClick={handleLocalGameClick}
+                className="btn btn-primary mode-button"
+              >
+                Play Now
+              </button>
+            </div>
+
+            <div className="mode-option online-mode">
+              <div className="mode-suit">♣</div>
+              <div className="mode-content">
+                <h3>Online Multiplayer</h3>
+                <p>Create or join a table with friends.</p>
+              </div>
+
+              {!showOnlineForm ? (
+                <button
+                  onClick={handleOnlineGameClick}
                   className="btn btn-primary mode-button"
                 >
-                  Start Local Game
+                  Play Online
                 </button>
-              </div>
-
-              <div className="mode-option online-mode">
-                <div className="mode-content">
-                  <h3>🌐 Online Multiplayer</h3>
-                  <p>Create or join tables with other players</p>
-                  <ul>
-                    <li>Play with friends</li>
-                    <li>Create private tables</li>
-                    <li>Join public games</li>
-                    <li>Mix human & AI players</li>
-                  </ul>
-                </div>
-                
-                {!showOnlineForm ? (
-                  <button 
-                    onClick={handleOnlineGameClick}
-                    className="btn btn-primary mode-button"
-                  >
-                    Play Online
-                  </button>
-                ) : (
-                  <div className="online-form">
-                    <div className="form-group">
-                      <label htmlFor="playerName">Your Name:</label>
-                      <input
-                        id="playerName"
-                        type="text"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        placeholder="Enter your name"
-                        maxLength={20}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            handleOnlineGameClick();
-                          }
-                        }}
-                      />
-                    </div>
-                    
-                    <div className="form-buttons">
-                      <button 
-                        onClick={handleOnlineGameClick}
-                        className="btn btn-primary mode-button"
-                        disabled={!playerName.trim()}
-                      >
-                        Enter Lobby
-                      </button>
-                      <button 
-                        onClick={() => setShowOnlineForm(false)}
-                        className="btn btn-secondary cancel-button"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+              ) : (
+                <div className="online-form">
+                  <div className="form-group">
+                    <label htmlFor="playerName">Your name</label>
+                    <input
+                      id="playerName"
+                      type="text"
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      placeholder="Enter your name"
+                      maxLength={20}
+                      autoFocus
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') handleOnlineGameClick();
+                      }}
+                    />
                   </div>
-                )}
-              </div>
+                  <div className="form-buttons">
+                    <button
+                      onClick={handleOnlineGameClick}
+                      className="btn btn-primary mode-button"
+                      disabled={!playerName.trim()}
+                    >
+                      Enter Lobby
+                    </button>
+                    <button
+                      onClick={() => setShowOnlineForm(false)}
+                      className="btn btn-secondary cancel-button"
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+
           </div>
 
-          <div className="additional-options">
+          <div className="menu-footer">
             <button onClick={onShowRules} className="btn btn-ghost rules-button">
-              📖 Game Rules
+              Game Rules
             </button>
-          </div>
-        </div>
-
-        <div className="game-info">
-          <div className="info-section">
-            <h4>How to Play</h4>
-            <p>
-              Draw and discard cards to get as close to 31 points as possible in a single suit. 
-              Face cards are worth 10, Aces are worth 11, and number cards are face value.
-            </p>
-          </div>
-          
-          <div className="info-section">
-            <h4>Winning</h4>
-            <p>
-              Get exactly 31 points for an instant win, or have the highest score when someone knocks. 
-              The lowest score loses a life. Last player standing wins!
+            <p className="quick-rules">
+              Aces&nbsp;= 11 &nbsp;·&nbsp; Face cards&nbsp;= 10 &nbsp;·&nbsp; 3 of a kind Aces or 31 in one suit&nbsp;= instant win
             </p>
           </div>
         </div>

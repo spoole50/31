@@ -518,34 +518,13 @@
 
 /* Game Actions */
 .game-actions {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 215, 0, 0.18);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   text-align: center;
   min-width: 250px;
   backdrop-filter: blur(5px);
-  position: relative;
-}
-
-.game-actions::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, transparent 50%, rgba(255, 215, 0, 0.05) 100%);
-  border-radius: var(--radius-lg);
-  pointer-events: none;
-}
-
-.game-actions h3 {
-  color: var(--gold-primary);
-  margin-bottom: var(--spacing-md);
-  font-size: var(--font-size-lg);
-  position: relative;
-  z-index: 1;
 }
 
 .action-buttons {
@@ -603,12 +582,14 @@
 }
 
 .final-round-warning {
-  background: #fff3cd;
-  color: #856404;
+  background: rgba(255, 107, 53, 0.15);
+  color: #ff8c5a;
+  border: 1px solid rgba(255, 107, 53, 0.3);
   padding: var(--spacing-sm);
   border-radius: var(--radius-sm);
   text-align: center;
   font-weight: 500;
+  font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-md);
 }
 
@@ -791,16 +772,19 @@
 }
 
 .winner-crown {
-  font-size: 4rem;
+  font-size: 3rem;
   margin-bottom: var(--spacing-lg);
-  animation: bounce 2s infinite;
+  color: var(--gold-primary);
+  line-height: 1;
 }
 
 .game-over-message h2 {
   color: var(--gold-primary);
   margin-bottom: var(--spacing-lg);
   font-size: var(--font-size-2xl);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .winner-announcement {

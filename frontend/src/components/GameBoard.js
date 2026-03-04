@@ -141,22 +141,20 @@ function GameBoard({
       {gameState.winner_id && !hideGameOverOverlay && (
         <div className="game-over-overlay">
           <div className="game-over-message">
-            <div className="winner-crown">👑</div>
-            <h2>🎉 Game Over! 🎉</h2>
+            <div className="winner-crown">★</div>
+            <h2>Game Over</h2>
             <div className="winner-announcement">
               <strong>{gameState.players[gameState.winner_id]?.name}</strong> wins!
             </div>
             <div className="final-scores">
-              <h3>🏆 Final Scores</h3>
+              <h3>Final Scores</h3>
               {Object.entries(gameState.players)
                 .sort(([,a], [,b]) => b.score - a.score)
                 .map(([playerId, player], index) => (
                 <div key={playerId} className={`score-line ${index === 0 ? 'winner-score' : ''}`}>
-                  <span className="rank-emoji">
-                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📋'}
-                  </span>
+                  <span className="rank-emoji">{index + 1}.</span>
                   <span className="player-name">{player.name}</span>
-                  <span className="player-score">{player.score} points</span>
+                  <span className="player-score">{player.score} pts</span>
                   <span className="player-lives">
                     {Array.from({ length: player.lives }, (_, i) => '♥').join('')}
                     {Array.from({ length: 3 - player.lives }, (_, i) => '♡').join('')}
@@ -167,12 +165,12 @@ function GameBoard({
             <div className="game-over-actions">
               {onNewGame && (
                 <button onClick={onNewGame} className="btn btn-primary">
-                  🎯 New Game
+                  New Game
                 </button>
               )}
               {onMainMenu && (
                 <button onClick={onMainMenu} className="btn btn-secondary">
-                  🏠 Main Menu
+                  Main Menu
                 </button>
               )}
             </div>
