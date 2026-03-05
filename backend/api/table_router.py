@@ -77,7 +77,6 @@ def create_table(req: CreateTableRequest):
         password=req.password,
     )
     store.add_table(table)
-    store.map_player_to_table(req.host_id, table.table_id)
     return table_to_dict(table)
 
 
@@ -102,7 +101,6 @@ def join_table(req: JoinTableRequest):
             detail="Could not join table — not found, full, game in progress, or wrong password",
         )
 
-    store.map_player_to_table(req.player_id, table.table_id)
     return table_to_dict(table)
 
 
@@ -111,7 +109,6 @@ def leave_table(table_id: str, req: LeaveTableRequest):
     success = table_manager.leave_table(req.player_id)
     if not success:
         raise HTTPException(status_code=400, detail="Player not in table")
-    store.unmap_player(req.player_id)
     return {"message": "Left table successfully"}
 
 
@@ -159,9 +156,10 @@ async def start_game(table_id: str, req: StartGameRequest):
 
     updated = table_manager.get_table(table_id)
 
-    # Notify all players in the room that the game has started
+    # Notify all players in the room with per-player game state
     if updated and updated.game_state:
-        await sio.emit("game_updated", game_state_to_dict(updated.game_state), room=table_id)
+        from api.socket_handlers import _emit_game_to_table
+        await _emit_game_to_table(updated)
     await sio.emit("table_updated", table_to_dict(updated), room=table_id)
 
     return table_to_dict(updated)
@@ -218,7 +216,11 @@ def get_table_game(table_id: str, player_id: Optional[str] = None):
     if player_id and player_id in table.players:
         table.update_player_activity(player_id)
 
-    return game_state_to_dict(table.game_state)
+    game_player_id = table.get_game_player_id(player_id) if player_id else None
+    payload = game_state_to_dict(table.game_state, requesting_player_id=game_player_id)
+    if game_player_id:
+        payload["your_player_id"] = game_player_id
+    return payload
 
 
 @router.post("/tables/{table_id}/game/{action}")
@@ -278,12 +280,11 @@ def table_game_action(table_id: str, action: str, data: dict):
     if not success:
         raise HTTPException(status_code=400, detail=f"Invalid {action} action")
 
-    table.schedule_ai_turn_if_needed()
-
     if game_state.is_game_over():
         table.status = TableStatus.FINISHED
 
-    return game_state_to_dict(game_state)
+    game_player_id_for_response = table.get_game_player_id(player_id)
+    return game_state_to_dict(game_state, requesting_player_id=game_player_id_for_response)
 
 
 # ── Player lookup ─────────────────────────────────────────────────────────────

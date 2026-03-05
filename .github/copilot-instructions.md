@@ -1,6 +1,6 @@
 <!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
 
-This project is a web app for the card game "31". It uses React for the frontend and Python Flask for the backend. The app includes a graphical interface for moveable cards, score tracking, and support for up to 8 players including AI players with varying difficulty levels. The backend is prepared for future online multiplayer functionality.
+This project is a web app for the card game "31". It uses React (Vite + Zustand) for the frontend and Python FastAPI + python-socketio + uvicorn (ASGI) for the backend. The app includes a graphical interface for moveable cards, score tracking, and support for up to 8 players including AI players with varying difficulty levels. Online multiplayer uses WebSockets (Socket.IO) for real-time play, with REST endpoints for lobby/table management. Local/pass-and-play games use REST only.
 
 31 Game Rules:
 #### Objective:

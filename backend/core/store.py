@@ -23,7 +23,6 @@ Usage
     store.remove_sid(sid)
 """
 
-import json
 import os
 from typing import Dict, Optional
 
@@ -43,7 +42,6 @@ class GameStore:
         # In-memory primary store — holds live Python objects
         self._games: Dict[str, object] = {}       # game_id -> GameState
         self._tables: Dict[str, object] = {}      # table_id -> GameTable
-        self._player_to_table: Dict[str, str] = {}  # player_id -> table_id
 
         # Socket tracking (never persisted — per-process only)
         self._sid_to_player: Dict[str, str] = {}  # socket sid -> player_id
@@ -81,20 +79,6 @@ class GameStore:
 
     def all_tables(self) -> Dict[str, object]:
         return dict(self._tables)
-
-    # ------------------------------------------------------------------
-    # Player ↔ Table mapping
-    # ------------------------------------------------------------------
-
-    def map_player_to_table(self, player_id: str, table_id: str) -> None:
-        self._player_to_table[player_id] = table_id
-
-    def get_table_for_player(self, player_id: str) -> Optional[object]:
-        table_id = self._player_to_table.get(player_id)
-        return self._tables.get(table_id) if table_id else None
-
-    def unmap_player(self, player_id: str) -> None:
-        self._player_to_table.pop(player_id, None)
 
     # ------------------------------------------------------------------
     # Socket ↔ Player tracking

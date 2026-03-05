@@ -159,6 +159,7 @@ const useGameStore = create((set, get) => ({
   onlineLoading: false,
   disconnectedPlayers: [],
   socketConnected: false,
+  _heartbeatInterval: null,
 
   setPlayerIdentity: (id, name) => {
     localStorage.setItem('playerId', id)
@@ -207,7 +208,10 @@ const useGameStore = create((set, get) => ({
     } catch { /* best effort */ }
     socket.emit('leave_table', { table_id: table.table_id, player_id: playerId })
     socket.disconnect()
-    set({ table: null, onlineGame: null, socketConnected: false, disconnectedPlayers: [] })
+    // Clean up heartbeat interval on leave
+    const hb = get()._heartbeatInterval
+    if (hb) clearInterval(hb)
+    set({ table: null, onlineGame: null, socketConnected: false, disconnectedPlayers: [], _heartbeatInterval: null })
   },
 
   startOnlineGame: async () => {
@@ -253,20 +257,39 @@ const useGameStore = create((set, get) => ({
   // ── Socket setup ──────────────────────────────────────────────────────────
   _connectSocket: (tableId) => {
     const { playerId, playerName } = get()
+
+    // Remove all old listeners to prevent stacking on reconnect
+    socket.off('connect')
+    socket.off('disconnect')
+    socket.off('table_updated')
+    socket.off('game_updated')
+    socket.off('player_disconnected')
+    socket.off('turn_timeout')
+    socket.off('error')
+
+    // Clear any previous heartbeat interval
+    const prevHeartbeat = get()._heartbeatInterval
+    if (prevHeartbeat) {
+      clearInterval(prevHeartbeat)
+      set({ _heartbeatInterval: null })
+    }
+
     socket.connect()
 
     socket.once('connect', () => {
       set({ socketConnected: true })
       socket.emit('join_table', { table_id: tableId, player_id: playerId, player_name: playerName })
 
-      // Heartbeat every 10 seconds
+      // Heartbeat every 10 seconds — store the interval so we can clean it up
       const heartbeat = setInterval(() => {
         if (socket.connected) {
           socket.emit('ping', { player_id: playerId })
         } else {
           clearInterval(heartbeat)
+          set({ _heartbeatInterval: null })
         }
       }, 10_000)
+      set({ _heartbeatInterval: heartbeat })
     })
 
     socket.on('connect', () => set({ socketConnected: true }))
@@ -275,9 +298,8 @@ const useGameStore = create((set, get) => ({
     socket.on('table_updated', (table) => set({ table }))
 
     socket.on('game_updated', (game) => {
-      const { playerName } = get()
-      const entry = Object.entries(game.players || {}).find(([, p]) => p.name === playerName)
-      set({ onlineGame: game, onlineGamePlayerId: entry?.[0] ?? null })
+      // Server sends `your_player_id` in each per-player payload
+      set({ onlineGame: game, onlineGamePlayerId: game.your_player_id ?? null })
     })
 
     socket.on('player_disconnected', ({ player_id, player_name, new_host_id }) => {

@@ -8,15 +8,12 @@ for online multiplayer functionality.
 import uuid
 import random
 import string
-import threading
-import time
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime, timedelta
 
-from game_logic import GameState, Player, AIDifficulty, create_new_game, GamePhase, end_round
-from ai.engine import advanced_ai_turn
+from game_logic import GameState, Player, AIDifficulty, create_new_game, end_round
 
 
 class TableStatus(Enum):
@@ -282,21 +279,19 @@ class GameTable:
                     ai_game_id = ai_game_ids[i]
                     self.player_id_mapping[table_player.id] = ai_game_id
             
-            # Create the game with host information
+            # Create the game with host information and table-level AI names
             self.game_state = create_new_game(
                 player_names=player_names,
                 num_ai_players=len(ai_players),
                 ai_difficulties=[p.ai_difficulty or AIDifficulty.MEDIUM for p in ai_players],
-                host_player_id=host_game_player_id
+                host_player_id=host_game_player_id,
+                ai_names=[p.name for p in ai_players],
             )
             
             # Update table and player statuses
             self.status = TableStatus.PLAYING
             for player in joined_players:
                 player.status = PlayerStatus.PLAYING
-            
-            # Schedule AI turn if needed
-            self.schedule_ai_turn_if_needed()
             
             return True
         except Exception as e:
@@ -369,43 +364,6 @@ class GameTable:
     def get_game_player_id(self, table_player_id: str) -> Optional[str]:
         """Get the corresponding game player ID for a table player ID"""
         return self.player_id_mapping.get(table_player_id)
-    
-    def schedule_ai_turn_if_needed(self):
-        """Check if it's an AI player's turn and schedule processing with delay"""
-        if not self.game_state or self.status != TableStatus.PLAYING:
-            return
-        
-        current_player_id = self.game_state.current_player_id
-        current_player = self.game_state.players.get(current_player_id)
-        
-        if current_player and current_player.is_ai:
-            # Random delay between 0.5 and 3 seconds
-            delay = random.uniform(0.5, 3.0)
-            
-            # Schedule AI turn processing in a separate thread
-            def process_ai_turn():
-                time.sleep(delay)
-                if self.game_state and self.game_state.current_player_id == current_player_id:
-                    try:
-                        # Check if there are still human players before processing AI turn
-                        if len(self.game_state.get_active_human_players()) == 0:
-                            print(f"No human players remaining - ending game")
-                            end_round(self.game_state, skip_life_loss=True)
-                            self.status = TableStatus.FINISHED
-                            return
-                        
-                        advanced_ai_turn(self.game_state, current_player_id)
-                        print(f"AI player {current_player.name} processed turn after {delay:.1f}s delay")
-                        
-                        # Check again after AI turn if game should end
-                        if self.game_state.is_game_over():
-                            end_round(self.game_state, skip_life_loss=True)
-                            self.status = TableStatus.FINISHED
-                    except Exception as e:
-                        print(f"Error processing AI turn for {current_player.name}: {e}")
-            
-            ai_thread = threading.Thread(target=process_ai_turn, daemon=True)
-            ai_thread.start()
 
 
 class TableManager:
@@ -459,8 +417,6 @@ class TableManager:
         # Add to new table
         if table.add_player(player_id, player_name):
             self.player_to_table[player_id] = table.table_id
-            # Check if AI turn needed (in case game is already running)
-            table.schedule_ai_turn_if_needed()
             return table
         
         return None
@@ -481,8 +437,6 @@ class TableManager:
         # Add to new table
         if table.add_player(player_id, player_name):
             self.player_to_table[player_id] = table_id
-            # Check if AI turn needed (in case game is already running)
-            table.schedule_ai_turn_if_needed()
             return table
         
         return None
@@ -598,8 +552,8 @@ class TableManager:
         
         return disconnected_log
     
-    def cleanup_old_tables(self, max_age_hours: int = 24):
-        """Clean up old finished tables"""
+    def cleanup_old_tables(self, max_age_hours: int = 24) -> int:
+        """Clean up old finished tables. Returns the number of tables removed."""
         cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
         
         tables_to_remove = []
@@ -618,6 +572,8 @@ class TableManager:
             
             # Remove table
             del self.tables[table_id]
+        
+        return len(tables_to_remove)
 
 
 # Global table manager instance

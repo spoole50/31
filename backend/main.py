@@ -17,14 +17,57 @@ Entry points:
   (Single worker because in-memory state is per-process. Add Redis to scale out.)
 """
 
+import asyncio
 import socketio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.socket import sio
+from core.store import store
 from api.game_router import router as game_router
 from api.table_router import router as table_router
+from table_logic import table_manager
 import api.socket_handlers  # noqa: F401  — registers all @sio.on handlers
+
+
+# ── Background cleanup task ───────────────────────────────────────────────────
+
+CLEANUP_INTERVAL_SECONDS = 120  # run every 2 minutes
+
+
+async def _periodic_cleanup():
+    """Remove stale tables and games that have been idle too long."""
+    while True:
+        await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+        try:
+            removed = table_manager.cleanup_old_tables()
+            if removed:
+                print(f"[CLEANUP] Removed {removed} stale table(s)")
+
+            # Remove games from the store that no longer belong to any table
+            active_game_ids = {
+                t.game_state.game_id
+                for t in table_manager.tables.values()
+                if t.game_state
+            }
+            stale_game_ids = [
+                gid for gid in store.all_games() if gid not in active_game_ids
+            ]
+            for gid in stale_game_ids:
+                store.remove_game(gid)
+            if stale_game_ids:
+                print(f"[CLEANUP] Removed {len(stale_game_ids)} orphaned game(s)")
+        except Exception as e:
+            print(f"[CLEANUP] Error during periodic cleanup: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start the periodic cleanup task when the app starts."""
+    task = asyncio.create_task(_periodic_cleanup())
+    yield
+    task.cancel()
 
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
@@ -33,6 +76,7 @@ fastapi_app = FastAPI(
     title="31 Card Game API",
     version="2.0.0",
     description="REST + WebSocket backend for the 31 card game",
+    lifespan=lifespan,
 )
 
 fastapi_app.add_middleware(

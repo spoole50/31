@@ -281,8 +281,16 @@ def deal_initial_cards(game_state: GameState) -> None:
     if game_state.deck:
         game_state.discard_pile = [game_state.deck.pop()]
 
-def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficulties: Optional[List[AIDifficulty]] = None, host_player_id: str = "") -> GameState:
-    """Create a new game with the specified players"""
+def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficulties: Optional[List[AIDifficulty]] = None, host_player_id: str = "", ai_names: Optional[List[str]] = None) -> GameState:
+    """Create a new game with the specified players.
+
+    Parameters
+    ----------
+    ai_names : list[str] | None
+        Display names for AI players (from the table lobby).  When provided
+        these are used instead of the generic "AI Player N" label so that
+        the game log matches the lobby names.
+    """
     game_id = str(uuid.uuid4())
     game_state = GameState(game_id=game_id)
     
@@ -298,9 +306,10 @@ def create_new_game(player_names: List[str], num_ai_players: int = 0, ai_difficu
     for i in range(num_ai_players):
         player_id = f"ai_{i+1}"
         difficulty = ai_difficulties[i] if i < len(ai_difficulties) else AIDifficulty.MEDIUM
+        name = ai_names[i] if ai_names and i < len(ai_names) else f"AI Player {i+1} ({difficulty.value.title()})"
         game_state.players[player_id] = Player(
             id=player_id, 
-            name=f"AI Player {i+1} ({difficulty.value.title()})", 
+            name=name, 
             is_ai=True,
             ai_difficulty=difficulty
         )
@@ -495,11 +504,9 @@ def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
         for player_id in losers:
             player = game_state.players[player_id]
             print(f"[LIFE_LOSS] {player.name} loses a life (score: {player_scores[player_id]})")  # Debug logging
-            game_state.players[player_id].lose_life()
-            # Check for elimination
-            if game_state.players[player_id].lives <= 0:
-                game_state.players[player_id].is_eliminated = True
-                player = game_state.players[player_id]
+            player.lose_life()
+            # lose_life() already sets is_eliminated when lives reach 0
+            if player.is_eliminated:
                 game_state.log_player_elimination(player.name)
     else:
         print(f"[ROUND_END] Skipping life loss (instant win scenario)")  # Debug logging
@@ -570,64 +577,20 @@ def start_new_round(game_state: GameState) -> None:
     shuffle_deck(game_state.deck)
     deal_initial_cards(game_state)
     
-    # Set first active player based on round logic
+    # Set first active player — winner of previous round goes first
     active_players = game_state.get_active_players()
     if active_players:
-        # First round: host goes first
-        # Subsequent rounds: winner of previous round goes first
-        if game_state.round_number == 1:
-            # Host goes first in first round
-            if game_state.host_player_id and game_state.host_player_id in game_state.players and not game_state.players[game_state.host_player_id].is_eliminated:
-                game_state.set_current_player(game_state.host_player_id)
-                host_name = game_state.players[game_state.host_player_id].name
-                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
-                game_state.add_to_game_log(f"👑 {host_name} (host) goes first")
-            else:
-                # Fallback if host is not available
-                game_state.set_current_player(active_players[0].id)
-                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
-                game_state.add_to_game_log(f"🃏 {active_players[0].name} goes first")
+        game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
+        # Note: round_number was already incremented, so it is always >= 2 here.
+        # The winner of the previous round goes first; fall back to first active.
+        if (game_state.last_round_winner_id
+                and game_state.last_round_winner_id in game_state.players
+                and not game_state.players[game_state.last_round_winner_id].is_eliminated):
+            game_state.set_current_player(game_state.last_round_winner_id)
+            winner_name = game_state.players[game_state.last_round_winner_id].name
+            game_state.add_to_game_log(f"🏆 {winner_name} (previous winner) goes first")
         else:
-            # Winner of previous round goes first
-            if game_state.last_round_winner_id and game_state.last_round_winner_id in game_state.players and not game_state.players[game_state.last_round_winner_id].is_eliminated:
-                game_state.set_current_player(game_state.last_round_winner_id)
-                winner_name = game_state.players[game_state.last_round_winner_id].name
-                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
-                game_state.add_to_game_log(f"🏆 {winner_name} (previous winner) goes first")
-            else:
-                # Fallback if previous winner is eliminated
-                game_state.set_current_player(active_players[0].id)
-                game_state.add_to_game_log(f"🆕 Round {game_state.round_number} begins!")
-                game_state.add_to_game_log(f"🃏 {active_players[0].name} goes first")
+            game_state.set_current_player(active_players[0].id)
+            game_state.add_to_game_log(f"🃏 {active_players[0].name} goes first")
 
 # Legacy functions for backward compatibility
-def deal_cards(deck, num_players):
-    """Legacy function - creates a simplified game state"""
-    hands = {}
-    deck_copy = deck.copy()
-    
-    for player in range(1, num_players + 1):
-        hands[str(player)] = [card.to_dict() if hasattr(card, 'to_dict') else card 
-                             for card in deck_copy[:3]]
-        deck_copy = deck_copy[3:]
-    
-    remaining = [card.to_dict() if hasattr(card, 'to_dict') else card 
-                for card in deck_copy]
-    
-    return hands, remaining
-
-# Example usage
-if __name__ == "__main__":
-    # Test the new game logic
-    game = create_new_game(["Alice", "Bob"], num_ai_players=2)
-    print("Game created with ID:", game.game_id)
-    print("Players:", [p.name for p in game.players.values()])
-    print("Current player:", game.current_player_id)
-    
-    # Test legacy compatibility
-    deck = create_deck()
-    deck = shuffle_deck(deck)
-    hands, remaining_deck = deal_cards(deck, 4)
-    print("\nLegacy compatibility test:")
-    print("Player Hands:", hands)
-    print("Remaining Deck length:", len(remaining_deck))

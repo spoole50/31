@@ -26,7 +26,6 @@ Key improvements over v1 polling:
 """
 
 import asyncio
-from typing import Optional
 
 from core.socket import sio
 from core.store import store
@@ -34,6 +33,28 @@ from table_logic import table_manager, TableStatus
 from game_logic import draw_card, discard_card, knock, GamePhase
 from ai.engine import advanced_ai_turn
 from utils.serializers import game_state_to_dict, table_to_dict
+
+
+# ── Helpers shared across handlers ────────────────────────────────────────────
+
+async def _emit_game_to_table(table, game=None) -> None:
+    """Send a per-player game_updated to every connected player at this table.
+
+    Each player receives a payload where only *their own* hand is visible.
+    """
+    if game is None:
+        game = table.game_state
+    if game is None:
+        return
+
+    for table_player_id, table_player in table.players.items():
+        sid = store.get_sid_for_player(table_player_id)
+        if not sid:
+            continue  # player not currently connected
+        game_player_id = table.get_game_player_id(table_player_id)
+        payload = game_state_to_dict(game, requesting_player_id=game_player_id)
+        payload["your_player_id"] = game_player_id
+        await sio.emit("game_updated", payload, to=sid)
 
 
 # ── Connection lifecycle ──────────────────────────────────────────────────────
@@ -47,7 +68,9 @@ async def on_connect(sid, environ):
 async def on_disconnect(sid):
     """
     Fired immediately when a socket closes (tab closed, network drop, etc.)
-    This is the real disconnect handler — no more 65-second inactivity wait.
+    We skip the disconnected player's turn (if active) but do NOT immediately
+    eliminate them.  A background task waits DISCONNECT_GRACE_SECONDS; if they
+    haven't reconnected by then they are eliminated and removed from the table.
     """
     player_id = store.remove_sid(sid)
     if not player_id:
@@ -62,74 +85,116 @@ async def on_disconnect(sid):
     player = table.players.get(player_id)
     player_name = player.name if player else player_id
 
-    # ── If game is active, handle mid-game disconnect ─────────────────────────
+    # ── If game is active, skip their turn so the game doesn't freeze ─────────
+    if table.game_state and table.status == TableStatus.PLAYING:
+        game = table.game_state
+        game_player_id = table.get_game_player_id(player_id)
+
+        if game_player_id and game.current_player_id == game_player_id:
+            game.add_to_game_log(f"⏸ {player_name} disconnected — turn skipped")
+            game.handle_turn_timeout(timeout_seconds=0)
+            await sio.emit(
+                "turn_timeout",
+                {"player_id": player_id, "player_name": player_name},
+                room=table_id,
+            )
+            await _run_ai_turns_if_needed(table_id)
+
+        # Broadcast updated game state (per-player, hands hidden)
+        await _emit_game_to_table(table)
+
+    # Notify room — player may reconnect within the grace period
+    await sio.emit(
+        "player_disconnected",
+        {
+            "player_id": player_id,
+            "player_name": player_name,
+            "new_host_id": None,
+            "may_reconnect": True,
+        },
+        room=table_id,
+    )
+    await sio.leave_room(sid, table_id)
+
+    # Schedule deferred cleanup
+    asyncio.ensure_future(
+        _delayed_disconnect_cleanup(player_id, table_id, player_name)
+    )
+
+
+async def _delayed_disconnect_cleanup(
+    player_id: str, table_id: str, player_name: str
+) -> None:
+    """Wait for the grace period, then eliminate + remove if not reconnected."""
+    await asyncio.sleep(DISCONNECT_GRACE_SECONDS)
+
+    # If a new socket registered in the meantime, the player reconnected
+    if store.get_sid_for_player(player_id):
+        print(f"[GRACE] {player_name} reconnected within {DISCONNECT_GRACE_SECONDS}s")
+        return
+
+    table = table_manager.get_table(table_id)
+    if not table:
+        return  # table already cleaned up
+
+    print(f"[GRACE_EXPIRED] {player_name} did not reconnect — eliminating")
+
+    # ── Eliminate from game ───────────────────────────────────────────────────
     if table.game_state and table.status == TableStatus.PLAYING:
         game = table.game_state
         game_player_id = table.get_game_player_id(player_id)
 
         if game_player_id:
-            # If it was this player's turn, skip it now so the game doesn't freeze
-            if game.current_player_id == game_player_id:
-                game.add_to_game_log(f"⏸ {player_name} disconnected — turn skipped")
-                game.handle_turn_timeout(timeout_seconds=0)  # force immediate skip
-                await sio.emit(
-                    "turn_timeout",
-                    {"player_id": player_id, "player_name": player_name},
-                    room=table_id,
-                )
-                # Run AI turns if the next player(s) are AI
-                await _run_ai_turns_if_needed(table_id)
-
-            # Eliminate the disconnected player from the game
             gp = game.players.get(game_player_id)
             if gp and not gp.is_eliminated:
                 gp.is_eliminated = True
-                game.add_to_game_log(f"💀 {player_name} disconnected and was eliminated")
+                game.add_to_game_log(f"💀 {player_name} timed out and was eliminated")
+
+            if game.current_player_id == game_player_id:
+                game.handle_turn_timeout(timeout_seconds=0)
+                await _run_ai_turns_if_needed(table_id)
 
             if game.is_game_over():
                 from game_logic import end_round
                 end_round(game, skip_life_loss=True)
                 table.status = TableStatus.FINISHED
 
-        # Broadcast updated game state to remaining players
-        await sio.emit("game_updated", game_state_to_dict(game), room=table_id)
+            await _emit_game_to_table(table)
 
-    # ── Host migration ────────────────────────────────────────────────────────
-    new_host_id = None
-    was_host = player and player.is_host
+    # ── Host migration & table removal ────────────────────────────────────────
+    was_host = player_id in table.players and table.players[player_id].is_host
     table_manager.leave_table(player_id)
-    store.unmap_player(player_id)
 
-    # After leave_table() the table may have a new host (bug fixed in table_logic)
     updated_table = table_manager.get_table(table_id)
+    new_host_id = None
     if updated_table and was_host:
         new_host = updated_table.get_host()
         if new_host:
             new_host_id = new_host.id
-            print(f"[HOST_MIGRATION] {player_name} left → new host: {new_host.name}")
+            print(f"[HOST_MIGRATION] {player_name} removed → new host: {new_host.name}")
 
-    # Notify room
     await sio.emit(
         "player_disconnected",
         {
             "player_id": player_id,
             "player_name": player_name,
             "new_host_id": new_host_id,
+            "may_reconnect": False,
         },
         room=table_id,
     )
-
     if updated_table:
         await sio.emit("table_updated", table_to_dict(updated_table), room=table_id)
-
-    await sio.leave_room(sid, table_id)
 
 
 # ── Lobby events ──────────────────────────────────────────────────────────────
 
 @sio.on("join_table")
 async def on_join_table(sid, data):
-    """Player connects to a table room (after joining via REST)."""
+    """Player connects to a table room (after joining via REST).
+    Also serves as the reconnection path: if the player was briefly
+    disconnected the grace-period task will see the new SID and keep them.
+    """
     table_id = data.get("table_id")
     player_id = data.get("player_id")
     player_name = data.get("player_name", "")
@@ -143,9 +208,8 @@ async def on_join_table(sid, data):
         await _error(sid, "Table not found")
         return
 
-    # Register the socket mapping
+    # Register the socket mapping (also evicts any stale SID)
     store.register_sid(sid, player_id)
-    store.map_player_to_table(player_id, table_id)
     await sio.enter_room(sid, table_id)
 
     print(f"[WS] join_table  player={player_name}  table={table_id}")
@@ -155,34 +219,72 @@ async def on_join_table(sid, data):
 
     await sio.emit("table_updated", table_to_dict(table), room=table_id)
 
-    # If game is already running, send current game state to the reconnecting player
+    # If game is already running, send per-player game state (reconnect path)
     if table.game_state:
-        await sio.emit("game_updated", game_state_to_dict(table.game_state), to=sid)
+        game_player_id = table.get_game_player_id(player_id)
+        payload = game_state_to_dict(table.game_state, requesting_player_id=game_player_id)
+        payload["your_player_id"] = game_player_id
+        await sio.emit("game_updated", payload, to=sid)
 
 
 @sio.on("leave_table")
 async def on_leave_table(sid, data):
+    """Voluntary leave — immediately eliminate from game (no grace period)."""
     table_id = data.get("table_id")
     player_id = data.get("player_id")
 
     if not table_id or not player_id:
         return
 
+    # Verify the socket belongs to this player
+    if store.get_player_for_sid(sid) != player_id:
+        await _error(sid, "Session mismatch")
+        return
+
     table = table_manager.get_table(table_id)
     player = table.players.get(player_id) if table else None
     player_name = player.name if player else player_id
 
+    # ── Eliminate from game if one is running ─────────────────────────────────
+    if table and table.game_state and table.status == TableStatus.PLAYING:
+        game = table.game_state
+        game_player_id = table.get_game_player_id(player_id)
+
+        if game_player_id:
+            gp = game.players.get(game_player_id)
+            if gp and not gp.is_eliminated:
+                gp.is_eliminated = True
+                game.add_to_game_log(f"💀 {player_name} left the game")
+
+            if game.current_player_id == game_player_id:
+                game.handle_turn_timeout(timeout_seconds=0)
+                await _run_ai_turns_if_needed(table_id)
+
+            if game.is_game_over():
+                from game_logic import end_round
+                end_round(game, skip_life_loss=True)
+                table.status = TableStatus.FINISHED
+
+            await _emit_game_to_table(table)
+
+    # ── Host migration & removal ──────────────────────────────────────────────
+    was_host = player and player.is_host
     table_manager.leave_table(player_id)
-    store.unmap_player(player_id)
     store.remove_sid(sid)
     await sio.leave_room(sid, table_id)
 
     updated_table = table_manager.get_table(table_id)
+    new_host_id = None
+    if updated_table and was_host:
+        new_host = updated_table.get_host()
+        if new_host:
+            new_host_id = new_host.id
+
     if updated_table:
         await sio.emit("table_updated", table_to_dict(updated_table), room=table_id)
     await sio.emit(
         "player_disconnected",
-        {"player_id": player_id, "player_name": player_name, "new_host_id": None},
+        {"player_id": player_id, "player_name": player_name, "new_host_id": new_host_id},
         room=table_id,
     )
 
@@ -225,6 +327,11 @@ async def on_game_action(sid, data):
         await _error(sid, "table_id, player_id and action are required")
         return
 
+    # Verify the socket belongs to the claimed player (prevents impersonation)
+    if store.get_player_for_sid(sid) != player_id:
+        await _error(sid, "Session mismatch — reconnect and try again")
+        return
+
     table = table_manager.get_table(table_id)
     if not table:
         await _error(sid, "Table not found")
@@ -259,7 +366,7 @@ async def on_game_action(sid, data):
             {"player_id": player_id, "player_name": player_name},
             room=table_id,
         )
-        await sio.emit("game_updated", game_state_to_dict(game), room=table_id)
+        await _emit_game_to_table(table)
         await _error(sid, "Your turn timed out and was skipped automatically")
         await _run_ai_turns_if_needed(table_id)
         return
@@ -292,8 +399,8 @@ async def on_game_action(sid, data):
     if game.is_game_over():
         table.status = TableStatus.FINISHED
 
-    # Broadcast updated state to entire table room
-    await sio.emit("game_updated", game_state_to_dict(game), room=table_id)
+    # Broadcast updated state (per-player, hands hidden)
+    await _emit_game_to_table(table)
 
     # ── Chain AI turns ────────────────────────────────────────────────────────
     await _run_ai_turns_if_needed(table_id)
@@ -316,7 +423,7 @@ async def _run_ai_turns_if_needed(table_id: str) -> None:
     for _ in range(max_ai_turns):
         if game.is_game_over():
             table.status = TableStatus.FINISHED
-            await sio.emit("game_updated", game_state_to_dict(game), room=table_id)
+            await _emit_game_to_table(table)
             return
 
         current = game.players.get(game.current_player_id)
@@ -327,7 +434,7 @@ async def _run_ai_turns_if_needed(table_id: str) -> None:
         await asyncio.sleep(0.9)
 
         success = advanced_ai_turn(game, game.current_player_id)
-        await sio.emit("game_updated", game_state_to_dict(game), room=table_id)
+        await _emit_game_to_table(table)
 
         if not success or game.is_game_over():
             if game.is_game_over():

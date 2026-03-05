@@ -73,6 +73,7 @@ def draw(game_id: str, req: DrawRequest):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    _enforce_turn_timer(game, req.player_id)
     success = draw_card(game, req.player_id, req.from_discard)
     if not success:
         raise HTTPException(status_code=400, detail="Invalid draw action")
@@ -85,6 +86,7 @@ def discard(game_id: str, req: DiscardRequest):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    _enforce_turn_timer(game, req.player_id)
     success = discard_card(game, req.player_id, req.card_index)
     if not success:
         raise HTTPException(status_code=400, detail="Invalid discard action")
@@ -97,6 +99,7 @@ def do_knock(game_id: str, req: KnockRequest):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    _enforce_turn_timer(game, req.player_id)
     success = knock(game, req.player_id)
     if not success:
         raise HTTPException(status_code=400, detail="Invalid knock action")
