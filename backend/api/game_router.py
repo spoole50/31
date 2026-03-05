@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 
-from game_logic import create_new_game, draw_card, discard_card, knock, AIDifficulty
+from game_logic import create_new_game, draw_card, discard_card, knock, AIDifficulty, GamePhase
 from ai.engine import advanced_ai_turn
 from core.store import store
 from utils.serializers import game_state_to_dict
@@ -74,10 +74,9 @@ def draw(game_id: str, req: DrawRequest):
         raise HTTPException(status_code=404, detail="Game not found")
 
     game.touch()
-    _enforce_turn_timer(game, req.player_id)
     success = draw_card(game, req.player_id, req.from_discard)
     if not success:
-        raise HTTPException(status_code=400, detail="Invalid draw action")
+        raise HTTPException(status_code=400, detail=_action_reject_reason(game, req.player_id, "draw"))
     return game_state_to_dict(game)
 
 
@@ -88,10 +87,9 @@ def discard(game_id: str, req: DiscardRequest):
         raise HTTPException(status_code=404, detail="Game not found")
 
     game.touch()
-    _enforce_turn_timer(game, req.player_id)
     success = discard_card(game, req.player_id, req.card_index)
     if not success:
-        raise HTTPException(status_code=400, detail="Invalid discard action")
+        raise HTTPException(status_code=400, detail=_action_reject_reason(game, req.player_id, "discard"))
     return game_state_to_dict(game)
 
 
@@ -102,10 +100,9 @@ def do_knock(game_id: str, req: KnockRequest):
         raise HTTPException(status_code=404, detail="Game not found")
 
     game.touch()
-    _enforce_turn_timer(game, req.player_id)
     success = knock(game, req.player_id)
     if not success:
-        raise HTTPException(status_code=400, detail="Invalid knock action")
+        raise HTTPException(status_code=400, detail=_action_reject_reason(game, req.player_id, "knock"))
     return game_state_to_dict(game)
 
 
@@ -140,18 +137,18 @@ def ai_turn(game_id: str):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _enforce_turn_timer(game, player_id: str):
-    """
-    If the acting player's turn has already timed out, force an auto-action and
-    raise 400 so the client knows their intended move was rejected.
-    This closes the gap where v1 accepted actions even after the timer expired.
-    """
-    if game.current_player_id != player_id:
-        return  # Not their turn — game logic will reject it anyway
-
-    if game.check_turn_timeout():
-        game.handle_turn_timeout()
-        raise HTTPException(
-            status_code=400,
-            detail="Turn timed out — your turn was skipped automatically",
-        )
+def _action_reject_reason(game, player_id: str, action: str) -> str:
+    """Build a diagnostic message explaining why an action was rejected."""
+    parts = [f"{action} rejected"]
+    if game.phase not in (GamePhase.PLAYING, GamePhase.FINAL_ROUND):
+        parts.append(f"phase={game.phase.value}")
+    if player_id != game.current_player_id:
+        parts.append(f"not_your_turn(current={game.current_player_id})")
+    player = game.players.get(player_id)
+    if not player:
+        parts.append("player_not_found")
+    elif player.is_eliminated:
+        parts.append("player_eliminated")
+    else:
+        parts.append(f"hand_size={len(player.hand)}")
+    return "; ".join(parts)
