@@ -73,6 +73,7 @@ def draw(game_id: str, req: DrawRequest):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    game.touch()
     _enforce_turn_timer(game, req.player_id)
     success = draw_card(game, req.player_id, req.from_discard)
     if not success:
@@ -86,6 +87,7 @@ def discard(game_id: str, req: DiscardRequest):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    game.touch()
     _enforce_turn_timer(game, req.player_id)
     success = discard_card(game, req.player_id, req.card_index)
     if not success:
@@ -99,6 +101,7 @@ def do_knock(game_id: str, req: KnockRequest):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    game.touch()
     _enforce_turn_timer(game, req.player_id)
     success = knock(game, req.player_id)
     if not success:
@@ -126,6 +129,7 @@ def ai_turn(game_id: str):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    game.touch()
     current = game.players.get(game.current_player_id)
     if not current or not current.is_ai:
         raise HTTPException(status_code=400, detail="Current player is not an AI")

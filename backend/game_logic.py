@@ -110,7 +110,12 @@ class GameState:
     host_player_id: str = ""  # Track the original host for first round
     last_round_winner_id: str = ""  # Track who won the previous round
     current_turn_start_time: Optional[datetime] = None  # Track when current player's turn started
+    last_activity: datetime = field(default_factory=datetime.now)  # Last REST/WS interaction
     
+    def touch(self) -> None:
+        """Update the last-activity timestamp (call on every player action)."""
+        self.last_activity = datetime.now()
+
     def is_game_over(self) -> bool:
         """Check if the game is over"""
         active_players = [p for p in self.players.values() if not p.is_eliminated]

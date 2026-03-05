@@ -34,10 +34,13 @@ import api.socket_handlers  # noqa: F401  — registers all @sio.on handlers
 # ── Background cleanup task ───────────────────────────────────────────────────
 
 CLEANUP_INTERVAL_SECONDS = 120  # run every 2 minutes
+GAME_IDLE_TIMEOUT_SECONDS = 1800  # 30 minutes — remove games idle longer than this
 
 
 async def _periodic_cleanup():
     """Remove stale tables and games that have been idle too long."""
+    from datetime import datetime
+
     while True:
         await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
         try:
@@ -45,19 +48,18 @@ async def _periodic_cleanup():
             if removed:
                 print(f"[CLEANUP] Removed {removed} stale table(s)")
 
-            # Remove games from the store that no longer belong to any table
-            active_game_ids = {
-                t.game_state.game_id
-                for t in table_manager.tables.values()
-                if t.game_state
-            }
-            stale_game_ids = [
-                gid for gid in store.all_games() if gid not in active_game_ids
-            ]
+            # Remove games that have been idle for longer than the timeout.
+            # This covers both local (non-table) games and orphaned table games.
+            now = datetime.now()
+            stale_game_ids = []
+            for gid, game in store.all_games().items():
+                idle = (now - game.last_activity).total_seconds()
+                if idle > GAME_IDLE_TIMEOUT_SECONDS:
+                    stale_game_ids.append(gid)
             for gid in stale_game_ids:
                 store.remove_game(gid)
             if stale_game_ids:
-                print(f"[CLEANUP] Removed {len(stale_game_ids)} orphaned game(s)")
+                print(f"[CLEANUP] Removed {len(stale_game_ids)} idle game(s)")
         except Exception as e:
             print(f"[CLEANUP] Error during periodic cleanup: {e}")
 
