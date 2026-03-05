@@ -7,7 +7,7 @@ import RulesModal from './components/RulesModal';
 import TableLobby from './components/TableLobby';
 import TableGameBoard from './components/TableGameBoard';
 
-const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api`;
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || ''}/api`;
 
 // App states
 const APP_STATES = {
@@ -26,9 +26,10 @@ function App() {
   const [error, setError] = useState(null);
   const [showRules, setShowRules] = useState(false);
   
-  // Online multiplayer state
-  const [playerId, setPlayerId] = useState(null);
-  const [playerName, setPlayerName] = useState('');
+  // Online multiplayer state — persisted to localStorage so page refreshes
+  // don't invalidate the player's identity (which is used as host_id on the backend).
+  const [playerId, setPlayerId] = useState(() => localStorage.getItem('playerId') || null);
+  const [playerName, setPlayerName] = useState(() => localStorage.getItem('playerName') || '');
   const [currentTableId, setCurrentTableId] = useState(null);
 
   const createLocalGame = async (playerNames, numAiPlayers = 0, aiDifficulties = []) => {
@@ -168,8 +169,7 @@ function App() {
     setGameState(null);
     setCurrentPlayerId('player_1');
     setError(null);
-    setPlayerId(null);
-    setPlayerName('');
+    // Do NOT reset playerId / playerName — they're persisted identities.
     setCurrentTableId(null);
   };
 
@@ -181,6 +181,8 @@ function App() {
   const goToOnlineLobby = (id, name) => {
     setPlayerId(id);
     setPlayerName(name);
+    localStorage.setItem('playerId', id);
+    localStorage.setItem('playerName', name);
     setAppState(APP_STATES.ONLINE_LOBBY);
     setError(null);
   };

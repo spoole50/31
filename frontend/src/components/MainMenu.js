@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import './MainMenu.css';
 
 const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
-  const [playerName, setPlayerName] = useState('');
-  const [playerId, setPlayerId] = useState('');
+  const [playerName, setPlayerName] = useState(() => localStorage.getItem('playerName') || '');
+  const [playerId, setPlayerId] = useState(() => localStorage.getItem('playerId') || '');
   const [showOnlineForm, setShowOnlineForm] = useState(false);
 
   const generatePlayerId = () => {
@@ -19,6 +19,8 @@ const MainMenu = ({ onLocalGame, onOnlineGame, onShowRules }) => {
       
       const id = playerId || generatePlayerId();
       setPlayerId(id);
+      localStorage.setItem('playerId', id);
+      localStorage.setItem('playerName', playerName.trim());
       onOnlineGame(id, playerName.trim());
     } else {
       setShowOnlineForm(true);

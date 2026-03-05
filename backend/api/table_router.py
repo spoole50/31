@@ -140,11 +140,21 @@ async def start_game(table_id: str, req: StartGameRequest):
     if not table.is_host(req.host_id):
         raise HTTPException(status_code=403, detail="Only the host can start the game")
 
+    # Granular validation so the frontend gets actionable error messages.
+    if table.status.value not in ("waiting", "ready"):
+        raise HTTPException(status_code=400, detail="Game has already started")
+    joined = [p for p in table.players.values() if p.status.value in ("joined", "ready")]
+    if len(joined) < table.min_players:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Need at least {table.min_players} players to start (currently {len(joined)}). Add an AI player or wait for more players to join.",
+        )
+
     success = table_manager.start_table_game(table_id, req.host_id)
     if not success:
         raise HTTPException(
             status_code=400,
-            detail="Cannot start game — need at least 2 players or game already started",
+            detail="Cannot start game — host ID mismatch or table not found",
         )
 
     updated = table_manager.get_table(table_id)
