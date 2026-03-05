@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import MainMenu from './pages/MainMenu.jsx'
 import LocalSetup from './pages/LocalSetup.jsx'
 import LocalGame from './pages/LocalGame.jsx'
@@ -8,7 +8,7 @@ import GameRoom from './pages/GameRoom.jsx'
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<MainMenu />} />
         <Route path="/local/setup" element={<LocalSetup />} />
@@ -18,6 +18,6 @@ export default function App() {
         <Route path="/online/game" element={<GameRoom />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   )
 }

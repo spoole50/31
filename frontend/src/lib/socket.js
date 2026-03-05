@@ -13,8 +13,11 @@ const API_URL = import.meta.env.VITE_API_URL || ''
 const socket = io(API_URL, {
   // Don't auto-connect — we connect explicitly when entering a game room
   autoConnect: false,
-  // Try WebSocket first, fall back to polling if the server doesn't support it
-  transports: ['websocket', 'polling'],
+  // Polling first: establishes connection immediately over plain HTTPS on any
+  // host (CDN, App Runner, etc.). Socket.IO will upgrade to WebSocket once
+  // the polling handshake succeeds, so we still get a persistent connection
+  // when the server supports it.
+  transports: ['polling', 'websocket'],
   // Reconnect automatically after network drops
   reconnection: true,
   reconnectionAttempts: 10,
