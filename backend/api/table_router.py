@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from table_logic import table_manager, TableStatus, AIDifficulty
+from core.socket import sio
 from core.store import store
 from utils.serializers import game_state_to_dict, table_to_dict
 
@@ -131,7 +132,7 @@ def get_table(table_id: str):
 # ── Game control (host only) ──────────────────────────────────────────────────
 
 @router.post("/tables/{table_id}/start")
-def start_game(table_id: str, req: StartGameRequest):
+async def start_game(table_id: str, req: StartGameRequest):
     table = table_manager.get_table(table_id)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
@@ -145,7 +146,15 @@ def start_game(table_id: str, req: StartGameRequest):
             status_code=400,
             detail="Cannot start game — need at least 2 players or game already started",
         )
-    return table_to_dict(table_manager.get_table(table_id))
+
+    updated = table_manager.get_table(table_id)
+
+    # Notify all players in the room that the game has started
+    if updated and updated.game_state:
+        await sio.emit("game_updated", game_state_to_dict(updated.game_state), room=table_id)
+    await sio.emit("table_updated", table_to_dict(updated), room=table_id)
+
+    return table_to_dict(updated)
 
 
 @router.post("/tables/{table_id}/restart")

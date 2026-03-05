@@ -208,14 +208,15 @@ const useGameStore = create((set, get) => ({
   startOnlineGame: async () => {
     const { playerId, table } = get()
     if (!table) return
+    set({ onlineLoading: true, onlineError: null })
     try {
       const updated = await api(`/api/tables/${table.table_id}/start`, {
         method: 'POST',
         body: { host_id: playerId },
       })
-      set({ table: updated })
+      set({ table: updated, onlineLoading: false })
     } catch (e) {
-      set({ onlineError: e.message })
+      set({ onlineLoading: false, onlineError: e.message })
     }
   },
 
