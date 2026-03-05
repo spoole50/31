@@ -7,6 +7,8 @@ frontend:
         - npm ci
     build:
       commands:
+        # VITE_API_URL must be set in Amplify → App settings → Environment variables
+        # It is inlined at build time by Vite (import.meta.env.VITE_API_URL)
         - npm run build
   artifacts:
     baseDirectory: frontend/build

@@ -11,8 +11,8 @@
 
 | Layer | Service | Notes |
 |---|---|---|
-| Frontend | AWS Amplify | Auto-deploys from GitHub on every push |
-| Backend | AWS App Runner | Runs the Flask/Gunicorn container from ECR |
+| Frontend | AWS Amplify | Auto-deploys from GitHub `main` on every push |
+| Backend | AWS App Runner | Runs the FastAPI + Socket.IO ASGI container from ECR |
 | Container registry | Amazon ECR | Stores Docker images |
 
 ---
@@ -32,13 +32,10 @@ docker compose up --build
 **Terminal 2 — Frontend (hot-reload):**
 ```bash
 cd frontend
-REACT_APP_API_URL=http://localhost:8000 npm start
+npm run dev     # Vite dev server on :3000, proxies /api and /socket.io to :8000
 ```
 
-Or create `frontend/.env.development` so you don't have to set it every time:
-```
-REACT_APP_API_URL=http://localhost:8000
-```
+No env var needed locally — Vite's dev server proxy handles routing to `localhost:8000` automatically.
 
 **Verify backend is healthy:**
 ```bash
@@ -52,12 +49,12 @@ curl http://localhost:8000/api/health
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python main.py
+uvicorn main:app --reload --port 8000
 
 # Frontend (separate terminal)
 cd frontend
 npm install
-npm start
+npm run dev
 ```
 
 ---
@@ -110,8 +107,8 @@ Note the `repositoryUri` from the output, e.g.:
 aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
 
-# Build, tag, and push
-docker build -t card-game-31-backend ./backend
+# Build (linux/amd64 — App Runner runs on x86_64)
+docker build --platform linux/amd64 -t card-game-31-backend ./backend
 docker tag card-game-31-backend:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:latest
 docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:latest
 ```
@@ -138,7 +135,10 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 
    | Key | Value |
    |---|---|
-   | `REACT_APP_API_URL` | `https://xxxxxxxx.us-east-1.awsapprunner.com` |
+   | `VITE_API_URL` | `https://xxxxxxxx.us-east-1.awsapprunner.com` |
+
+   > ⚠️ Vite inlines env vars at **build time**. After setting or changing `VITE_API_URL`
+   > you must trigger a new Amplify build (push a commit or click **Redeploy this version**).
 
 5. Click **Save and deploy** (~2 min)
 
@@ -146,7 +146,7 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 
 ```bash
 curl https://xxxxxxxx.us-east-1.awsapprunner.com/api/health
-# {"status": "healthy", ...}
+# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0,"redis":false}
 ```
 
 Open your Amplify URL and start a local game to confirm end-to-end connectivity.
@@ -174,9 +174,12 @@ Open your Amplify URL and start a local game to confirm end-to-end connectivity.
 
 ## Production Checklist
 
-- [ ] `REACT_APP_API_URL` set correctly in Amplify env vars
-- [ ] CORS working — test from browser console (no blocked requests)
-- [ ] Backend health endpoint returns 200
-- [ ] Consider replacing in-memory game state with Redis/DynamoDB for persistence across redeploys
+- [ ] `VITE_API_URL` set in Amplify environment variables
+- [ ] Amplify redeploy triggered after setting env var (Vite inlines at build time)
+- [ ] Backend health endpoint returns `{"version":"2.0.0",...}`
+- [ ] WebSocket connects — browser Network tab shows `101 Switching Protocols` on `/socket.io/`
+- [ ] CORS working — no blocked requests in browser console
+- [ ] Online game: create table, add AI, start game, play a full round
+- [ ] Consider adding Redis (`REDIS_URL` env var on App Runner) for state persistence across redeploys
 - [ ] Add rate limiting to API routes
 - [ ] Set up CloudWatch alerts on App Runner for error spikes

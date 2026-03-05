@@ -182,13 +182,13 @@ class GameState:
             # Player hasn't drawn yet - force draw from deck
             if self.deck:
                 card = self.deck.pop()
-                current_player.add_card(card)
+                current_player.hand.append(card)
                 self.add_to_game_log(f"🃏 {current_player.name} was forced to draw from deck (timeout)")
         
         # If player has 4 cards, force discard of first card
         if len(current_player.hand) > 3:
             discarded_card = current_player.hand.pop(0)  # Remove first card
-            self.discard_pile.append(discarded_card)
+            self.discard_pile.insert(0, discarded_card)  # newest card at index 0
             self.add_to_game_log(f"🗑️ {current_player.name} was forced to discard {discarded_card.value} of {discarded_card.suit} (timeout)")
         
         # Move to next player
