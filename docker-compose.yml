@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Allow the React dev server to call the API
+      # Allow the Vite dev server to call the API
       - FRONTEND_URL=http://localhost:3000
     # Uncomment to persist nothing (in-memory is default)
     # volumes:
