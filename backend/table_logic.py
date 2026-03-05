@@ -156,19 +156,24 @@ class GameTable:
         """Remove a player from the table"""
         if player_id not in self.players:
             return False
-        
+
         was_host = self.players[player_id].is_host
         del self.players[player_id]
-        
-        # If host left, promote another player to host
+
+        # If host left, promote the next non-AI player (or any player) to host
         if was_host and self.players:
-            next_host = next(iter(self.players.values()))
+            # Prefer a human player for the host role
+            human_players = [p for p in self.players.values() if not p.is_ai]
+            next_host = human_players[0] if human_players else next(iter(self.players.values()))
             next_host.is_host = True
-        
+            # *** FIX: keep GameTable.host_id in sync ***
+            self.host_id = next_host.id
+            print(f"[HOST_MIGRATION] New host: {next_host.name} ({next_host.id})")
+
         # If no players left, mark table for cleanup
         if not self.players:
             self.status = TableStatus.FINISHED
-        
+
         return True
     
     def update_player_activity(self, player_id: str) -> bool:
@@ -177,6 +182,10 @@ class GameTable:
             self.players[player_id].update_activity()
             return True
         return False
+
+    def is_host(self, player_id: str) -> bool:
+        """Check whether player_id is the current host"""
+        return player_id == self.host_id
     
     def check_for_disconnected_players(self, timeout_seconds: int = 45) -> List[str]:
         """Check for players who have been inactive for too long"""

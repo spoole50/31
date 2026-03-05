@@ -11,6 +11,7 @@ COPY . .
 
 EXPOSE 8000
 
-# Single worker required because game state is in-memory.
-# Use multiple threads so the disconnect checker daemon thread can run.
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "--timeout", "120", "wsgi:app"]
+# Single worker — in-memory state is per-process.
+# Add REDIS_URL env var to enable Redis persistence and scale to multiple workers.
+# UvicornWorker handles the ASGI app (FastAPI + python-socketio combined).
+CMD ["gunicorn", "main:app", "--workers", "1", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120"]
