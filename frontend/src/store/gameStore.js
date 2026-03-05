@@ -149,8 +149,9 @@ const useGameStore = create((set, get) => ({
   clearLocalGame: () => set({ localGame: null, localPlayerId: null, localHandoffPlayerId: null, localError: null, localUseTimer: false }),
 
   // ── Online / table ──────────────────────────────────────────────────────────
-  playerId: null,
-  playerName: '',
+  // Rehydrate from localStorage so page refreshes don't lose player identity
+  playerId: localStorage.getItem('playerId') || null,
+  playerName: localStorage.getItem('playerName') || '',
   table: null,
   onlineGame: null,
   onlineGamePlayerId: null,  // game-level player ID (different from table player ID)
@@ -159,7 +160,11 @@ const useGameStore = create((set, get) => ({
   disconnectedPlayers: [],
   socketConnected: false,
 
-  setPlayerIdentity: (id, name) => set({ playerId: id, playerName: name }),
+  setPlayerIdentity: (id, name) => {
+    localStorage.setItem('playerId', id)
+    localStorage.setItem('playerName', name)
+    set({ playerId: id, playerName: name })
+  },
 
   createTable: async (tableName, maxPlayers, isPrivate) => {
     const { playerId, playerName } = get()

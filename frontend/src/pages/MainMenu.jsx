@@ -13,7 +13,11 @@ export default function MainMenu() {
   const handleOnline = () => {
     if (!showOnlineForm) { setShowOnlineForm(true); return }
     if (!name.trim()) { return }
-    const id = 'player_' + Math.random().toString(36).slice(2, 10)
+    // Reuse existing persisted ID so host identity survives page refreshes
+    const existingId = localStorage.getItem('playerId')
+    const id = existingId || 'player_' + Math.random().toString(36).slice(2, 10)
+    localStorage.setItem('playerId', id)
+    localStorage.setItem('playerName', name.trim())
     setPlayerIdentity(id, name.trim())
     navigate('/online')
   }
