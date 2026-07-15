@@ -161,6 +161,7 @@ curl http://localhost:8000/api/health
 | POST | `/api/games/{id}/draw` | Draw from deck or discard pile |
 | POST | `/api/games/{id}/discard` | Discard a card |
 | POST | `/api/games/{id}/knock` | Knock to end the round |
+| POST | `/api/games/{id}/timeout` | Force-skip the current turn (local timer) |
 | POST | `/api/games/{id}/ai-turn` | Process AI player turn |
 | GET | `/api/health` | Server health + stats |
 
@@ -173,8 +174,11 @@ curl http://localhost:8000/api/health
 | POST | `/api/tables/{id}/join` | Join by table ID |
 | POST | `/api/tables/join-by-code` | Join using invite code |
 | POST | `/api/tables/{id}/start` | Start game (host only) |
+| POST | `/api/tables/{id}/restart` | Restart a finished game (host only) |
 | POST | `/api/tables/{id}/leave` | Leave table |
 | POST | `/api/tables/{id}/add-ai` | Add AI player (host only) |
+| GET | `/api/tables/{id}/game` | Get per-player game state |
+| POST | `/api/tables/{id}/game/{action}` | REST fallback for draw/discard/knock/ai-turn |
 
 ### WebSocket Events (`/socket.io`)
 
@@ -200,6 +204,21 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full AWS guide.
 - Frontend: AWS Amplify — auto-deploys on push to `main` (`npm run build → build/`)
 - Backend: AWS App Runner (`us-east-1`) — deploys from ECR on image push
 - Single Gunicorn worker with `UvicornWorker` (in-memory state; set `REDIS_URL` to enable multi-worker)
+
+### Reducing cost
+
+App Runner does **not** scale to zero — it keeps 0.5 GB provisioned at all times and
+bills ~$2.50/month even with no traffic. Two ways to cut that:
+
+1. **Move the container to a scale-to-zero host** (least effort, ~$0/month at low traffic).
+   The existing `backend/Dockerfile` runs unchanged on **Google Cloud Run**
+   (`--min-instances=0 --max-instances=1`) or **Fly.io** (`auto_stop_machines`).
+   See [DEPLOYMENT.md](DEPLOYMENT.md#cost-estimate) for the full comparison.
+2. **Make local play client-side** (bigger change, removes the backend from the hot path).
+   Every local single-player action currently round-trips to `/api/games/*`, so even
+   offline-style play needs the paid server running. Porting `game_logic.py` +
+   `ai/engine.py` to JS would make local games run entirely in the browser (static,
+   free on Amplify) and leave the backend needed **only** for online multiplayer.
 
 ---
 
