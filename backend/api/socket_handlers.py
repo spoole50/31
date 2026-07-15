@@ -35,6 +35,14 @@ from ai.engine import advanced_ai_turn
 from utils.serializers import game_state_to_dict, table_to_dict
 
 
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+# How long to wait after a socket drops before eliminating the player and
+# removing them from the table. If a new socket registers for the same player
+# within this window (reconnect / brief network blip) the cleanup is skipped.
+DISCONNECT_GRACE_SECONDS = 30
+
+
 # ── Helpers shared across handlers ────────────────────────────────────────────
 
 async def _emit_game_to_table(table, game=None) -> None:
