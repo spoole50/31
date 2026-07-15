@@ -166,9 +166,27 @@ Open your Amplify URL and start a local game to confirm end-to-end connectivity.
 
 | Service | Tier | ~Monthly cost |
 |---|---|---|
-| App Runner | 0.25 vCPU / 0.5 GB | ~$5–12 (scales to zero when idle) |
+| App Runner | 0.25 vCPU / 0.5 GB | **~$2.50 idle floor** + compute during requests |
 | Amplify Hosting | Free tier | $0 (first 1,000 build mins/mo free) |
 | ECR | First 500 MB free | ~$0 |
+
+> ⚠️ **App Runner does _not_ scale to zero.** Even with no traffic it keeps the
+> instance's memory provisioned and bills for it at ~$0.007/GB-hr. At the minimum
+> 0.5 GB that is `0.5 × 0.007 × 730 ≈ $2.55/month` regardless of usage — which is
+> the standing charge you see. Active vCPU/memory is billed on top only while
+> requests are being served.
+>
+> **To cut the idle cost to ~$0**, move the container to a platform that scales to
+> true zero:
+> - **Google Cloud Run** — same Docker image, `--min-instances=0`, `--max-instances=1`
+>   (keeps the single-worker in-memory model), high concurrency. At this traffic it
+>   stays inside the always-free tier → ~$0/month. Supports WebSockets (60-min cap).
+> - **Fly.io** — `auto_stop_machines` + `min_machines_running=0`; a stopped machine
+>   bills ~$0 for compute. Native WebSocket support.
+>
+> Frontend stays on Amplify (or Cloudflare Pages / GitHub Pages), all $0. See
+> "Reducing cost" in the root README for the architectural option (client-side
+> local play) that removes the backend from the critical path entirely.
 
 ---
 
