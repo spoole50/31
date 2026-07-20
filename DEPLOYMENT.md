@@ -20,41 +20,39 @@
 ## Local Development
 
 ### Prerequisites
-- Python 3.11+, Node.js 18+, Docker Desktop
+- Python 3.11+
+- Node.js 18+ (`.nvmrc` pins 24 — with [fnm](https://github.com/Schniz/fnm) or
+  nvm installed, `cd` into the repo and it selects the right version)
 
-### Run with Docker (recommended — matches production)
+Docker is **not** required for development or deployment. See
+[Container images](#container-images) below.
 
-**Terminal 1 — Backend:**
+### Run it
+
 ```bash
-docker compose up --build
+# One-time setup
+python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
+npm install
+
+# Both servers, one command
+npm run dev
 ```
 
-**Terminal 2 — Frontend (hot-reload):**
+That starts uvicorn on `:8000` with `--reload` and Vite on `:3000`. Vite proxies
+`/api` and `/socket.io` to the backend, so no env var is needed locally, and
+`http://localhost:3000` is allowed by CORS unconditionally.
+
+To run them separately:
+
 ```bash
-cd frontend
-npm run dev     # Vite dev server on :3000, proxies /api and /socket.io to :8000
+npm run dev:backend     # uvicorn main:app --reload --port 8000
+npm run dev:frontend    # vite on :3000
 ```
 
-No env var needed locally — Vite's dev server proxy handles routing to `localhost:8000` automatically.
-
-**Verify backend is healthy:**
+**Verify the backend:**
 ```bash
 curl http://localhost:8000/api/health
-```
-
-### Run without Docker
-
-```bash
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-
-# Frontend (separate terminal)
-cd frontend
-npm install
-npm run dev
+# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0,"redis":false}
 ```
 
 ---
@@ -102,16 +100,34 @@ Note the `repositoryUri` from the output, e.g.:
 
 ### Step 4 — Build and push the Docker image
 
+<a id="container-images"></a>
+
+App Runner runs **linux/amd64**. On an Apple Silicon Mac that means a cross-architecture
+build, which is the one thing local container tooling makes awkward — Apple's native
+`container` CLI is built around running native arm64 Linux VMs, so producing an amd64
+artifact with it is fighting the tool. Prefer building in CI, where the architecture is
+correct by default and nobody has to remember the `--platform` flag:
+
+> **Planned:** a GitHub Actions workflow that builds and pushes on every push to
+> `main`, removing the local Docker requirement entirely. Not yet added — until
+> then use the manual path below.
+
+<details>
+<summary>Manual build (requires Docker or colima locally)</summary>
+
 ```bash
 # Authenticate Docker to ECR (replace with your account ID)
 aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
 
-# Build (linux/amd64 — App Runner runs on x86_64)
+# --platform is mandatory on Apple Silicon; without it App Runner
+# silently fails to start an arm64 image.
 docker build --platform linux/amd64 -t card-game-31-backend ./backend
 docker tag card-game-31-backend:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:latest
 docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:latest
 ```
+
+</details>
 
 ### Step 5 — Create the App Runner service (Backend)
 
@@ -121,8 +137,19 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 4. Service settings:
    - Port: `8000`
    - CPU: 0.25 vCPU / Memory: 0.5 GB
-5. Click **Create & deploy** (~3 min)
-6. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
+5. **Environment variables:**
+
+   | Key | Value |
+   |---|---|
+   | `ALLOWED_ORIGINS` | `https://31.spoole.fyi` |
+
+   > **Required.** CORS is an allowlist, not `*`. Without this the deployed
+   > frontend is blocked by the browser and both REST and Socket.IO fail.
+   > Comma-separate multiple origins (e.g. to include an Amplify preview URL).
+   > `http://localhost:3000` is always permitted and need not be listed.
+
+6. Click **Create & deploy** (~3 min)
+7. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
 
 ### Step 6 — Deploy the frontend on Amplify
 
@@ -140,7 +167,19 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
    > ⚠️ Vite inlines env vars at **build time**. After setting or changing `VITE_API_URL`
    > you must trigger a new Amplify build (push a commit or click **Redeploy this version**).
 
-5. Click **Save and deploy** (~2 min)
+5. **App settings → Rewrites and redirects → Add rule:**
+
+   | Source | Target | Type |
+   |---|---|---|
+   | `/<*>` | `/index.html` | `200 (Rewrite)` |
+
+   > Without this, deep links return **HTTP 404**. Amplify still serves
+   > `index.html` as its 404 body, so React boots and the app *appears* to work —
+   > but every refresh mid-game, and every shared link, responds 404 to browsers,
+   > caches and crawlers. This is console-only configuration; it is not captured
+   > in `amplify.yml`, so it must be re-applied if the app is ever recreated.
+
+6. Click **Save and deploy** (~2 min)
 
 ### Step 7 — Smoke test
 
@@ -192,12 +231,26 @@ Open your Amplify URL and start a local game to confirm end-to-end connectivity.
 
 ## Production Checklist
 
+- [ ] `ALLOWED_ORIGINS` set on App Runner to the frontend origin — **required**;
+      CORS is an allowlist, so the site is broken without it
 - [ ] `VITE_API_URL` set in Amplify environment variables
 - [ ] Amplify redeploy triggered after setting env var (Vite inlines at build time)
+- [ ] Amplify rewrite rule `/<*>` → `/index.html` (200) added, or deep links 404
 - [ ] Backend health endpoint returns `{"version":"2.0.0",...}`
 - [ ] WebSocket connects — browser Network tab shows `101 Switching Protocols` on `/socket.io/`
 - [ ] CORS working — no blocked requests in browser console
 - [ ] Online game: create table, add AI, start game, play a full round
-- [ ] Consider adding Redis (`REDIS_URL` env var on App Runner) for state persistence across redeploys
-- [ ] Add rate limiting to API routes
-- [ ] Set up CloudWatch alerts on App Runner for error spikes
+
+### Known gaps
+
+- [ ] **No rate limiting on any route.** Table and game creation are unbounded,
+      so a trivial loop can exhaust the 0.5 GB instance.
+- [ ] **Invite codes are not access control.** Tables are created with
+      `is_private: false`, so `GET /api/tables/public` lists them and they can be
+      joined by ID without the code.
+- [ ] **A page refresh during an online game drops the player.** `table` is not
+      persisted to localStorage, and REST rejoin requires status `waiting`, so
+      the 30 s disconnect grace period cannot save a refreshing player.
+- [ ] Redis (`REDIS_URL`) for state persistence across redeploys — the store
+      interface exists but no mutation is actually persisted yet.
+- [ ] CloudWatch alerts on App Runner for error spikes

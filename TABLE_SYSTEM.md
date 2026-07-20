@@ -63,9 +63,12 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 | POST | `/api/tables/{id}/restart` | Restart finished game (host only) |
 | POST | `/api/tables/{id}/add-ai` | Add AI player (host only) |
 | POST | `/api/tables/{id}/leave` | Leave a table |
-| GET | `/api/tables/{id}/game` | Get game state (player-scoped via `?player_id=`) |
-| POST | `/api/tables/{id}/game/{action}` | Perform a game action (draw / discard / knock) |
 | GET | `/api/player/{id}/table` | Get a player's current table |
+
+> Table *lobby* management is REST; the *game itself* is Socket.IO only. The old
+> `GET /tables/{id}/game` and `POST /tables/{id}/game/{action}` were removed —
+> neither verified the caller's identity, so the read leaked opponents' hands
+> and the write let anyone move as anyone. Do not reintroduce them.
 
 ### WebSocket Events (Socket.IO)
 

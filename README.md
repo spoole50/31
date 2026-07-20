@@ -60,33 +60,39 @@ Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://gi
 
 ### Prerequisites
 - Python 3.11+
-- Node.js 18+
+- Node.js 18+ — `.nvmrc` pins 24; with [fnm](https://github.com/Schniz/fnm) or
+  nvm installed, `cd` into the repo and the right version is selected for you
+- Docker is **not** required (see [DEPLOYMENT.md](DEPLOYMENT.md))
 
-### Backend
-
-```bash
-cd backend
-source ../.venv/bin/activate      # or: python -m venv ../.venv && source ../.venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-
-### Frontend
+### Setup (once)
 
 ```bash
-cd frontend
-npm install                        # first time only
-npm run dev                        # starts on http://localhost:3000
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt
+npm install
 ```
 
-The Vite dev server proxies `/api` and `/socket.io` to `http://localhost:8000` automatically.
+### Run
+
+```bash
+npm run dev        # uvicorn on :8000 + Vite on :3000, together
+```
+
+Or separately:
+
+```bash
+npm run dev:backend    # uvicorn main:app --reload --port 8000
+npm run dev:frontend   # vite on :3000
+```
+
+Vite proxies `/api` and `/socket.io` to `http://localhost:8000`, so no env var is
+needed locally. `http://localhost:3000` is always allowed by the backend's CORS
+allowlist.
 
 ### Stop servers
 
 ```bash
-# Frontend — Ctrl+C in that terminal
-
-# Backend — Ctrl+C, or kill by port:
+# Ctrl+C in the terminal, or kill the backend by port:
 lsof -ti :8000 | xargs kill
 ```
 
@@ -177,8 +183,13 @@ curl http://localhost:8000/api/health
 | POST | `/api/tables/{id}/restart` | Restart a finished game (host only) |
 | POST | `/api/tables/{id}/leave` | Leave table |
 | POST | `/api/tables/{id}/add-ai` | Add AI player (host only) |
-| GET | `/api/tables/{id}/game` | Get per-player game state |
-| POST | `/api/tables/{id}/game/{action}` | REST fallback for draw/discard/knock/ai-turn |
+
+> **There is deliberately no REST endpoint for reading game state or submitting
+> game actions.** Both used to exist and both were unauthenticated — the read
+> returned any player's hand to any caller, and the write accepted moves as any
+> player. Gameplay goes exclusively through Socket.IO, which verifies the socket
+> session owns the claimed player and emits per-player payloads with opponents'
+> hands hidden. Clients receive state on join and after every action.
 
 ### WebSocket Events (`/socket.io`)
 
