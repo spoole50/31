@@ -84,14 +84,14 @@ export default function MainMenu() {
 
       {/* Rules */}
       <button
-        className="mt-8 text-white/40 text-sm underline underline-offset-2 hover:text-white/70 transition-colors"
+        className="mt-8 text-white/55 text-sm underline underline-offset-2 hover:text-white/70 transition-colors"
         onClick={() => setShowRules(true)}
       >
         How to play
       </button>
 
       {/* Footer */}
-      <footer className="mt-10 text-white/25 text-xs flex items-center gap-2">
+      <footer className="mt-10 text-white/55 text-xs flex items-center gap-2">
         <a
           href="https://github.com/spoole50"
           target="_blank"

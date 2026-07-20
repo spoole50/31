@@ -10,8 +10,10 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import Card from './Card.jsx'
 
+/* white/55 is the floor that clears WCAG AA (4.5:1) against felt.dark;
+   white/40 measured 3.60:1. Same reason for the labels below. */
 function Caption({ children }) {
-  return <span className="h-4 text-xs text-white/40 tabular-nums">{children}</span>
+  return <span className="h-4 text-xs text-white/55 tabular-nums">{children}</span>
 }
 
 export default function DiscardPile({
@@ -24,7 +26,7 @@ export default function DiscardPile({
 }) {
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="text-white/40 text-xs uppercase tracking-wider">Table</p>
+      <p className="text-white/55 text-xs uppercase tracking-wider">Table</p>
 
       <div className="flex items-start gap-6">
         {/* Draw deck */}
@@ -40,7 +42,10 @@ export default function DiscardPile({
               canDraw ? `Draw from deck, ${deckSize} cards left` : `Deck, ${deckSize} cards left`
             }
           >
-            <span className="text-white/20 text-xs font-mono">{deckSize}</span>
+            {/* Sits on the felt card-back pattern, not the page background:
+                white/20 measured 1.79:1 there. white/80 clears AA on both
+                stripe tones. */}
+            <span className="text-white/80 text-xs font-mono">{deckSize}</span>
           </motion.button>
           <Caption>{canDraw ? 'Tap to draw' : `Deck (${deckSize})`}</Caption>
         </div>

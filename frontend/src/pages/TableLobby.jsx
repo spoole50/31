@@ -48,7 +48,7 @@ export default function TableLobby() {
           <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Invite code</p>
           <p className="text-3xl font-bold tracking-[0.3em] text-gold">{table.invite_code}</p>
           <button
-            className="text-white/40 text-xs mt-2 hover:text-white/70"
+            className="text-white/55 text-xs mt-2 hover:text-white/70"
             onClick={() => navigator.clipboard?.writeText(table.invite_code)}
           >
             Copy
@@ -99,7 +99,7 @@ export default function TableLobby() {
             {onlineLoading ? 'Starting…' : 'Start Game'}
           </button>
           {!canStart && (
-            <p className="text-center text-white/40 text-sm">Need at least 2 players to start</p>
+            <p className="text-center text-white/55 text-sm">Need at least 2 players to start</p>
           )}
         </div>
       )}

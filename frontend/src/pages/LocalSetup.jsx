@@ -118,7 +118,7 @@ export default function LocalSetup() {
         <label className="flex items-center justify-between cursor-pointer">
           <div>
             <p className="text-sm font-medium">Turn Timer</p>
-            <p className="text-xs text-white/40">45 seconds per turn</p>
+            <p className="text-xs text-white/55">45 seconds per turn</p>
           </div>
           <button
             type="button"
@@ -150,7 +150,7 @@ export default function LocalSetup() {
       </button>
 
       {totalPlayers < 2 && (
-        <p className="text-center text-white/40 text-sm mt-3">Need at least 2 players</p>
+        <p className="text-center text-white/55 text-sm mt-3">Need at least 2 players</p>
       )}
     </div>
   )

@@ -132,6 +132,7 @@
   }
   .badge-gold { background: theme('colors.gold.DEFAULT' / 20%); color: theme('colors.gold.light'); }
   .badge-muted { background: rgb(255 255 255 / 0.1); color: rgb(255 255 255 / 0.6); }
+  .badge-knocked { background: theme('colors.orange.500' / 20%); color: theme('colors.orange.300'); }
 
   .life-dot { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 9999px; }
   .life-dot.active { background: theme('colors.red.500'); }

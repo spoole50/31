@@ -156,22 +156,30 @@ export default function GameBoard({ mode, onExit }) {
               show={!isLocal || store.localUseTimer}
               onExpire={isLocal ? store.localTimeoutTurn : undefined}
             />
-            <button className="btn btn-secondary btn-sm" onClick={onExit} aria-label="Leave game">
+            {/* btn-sm is 2rem tall — under the 44px WCAG target size, and this
+                is the one destructive control on the screen. */}
+            <button
+              className="btn btn-secondary w-11 h-11 p-0"
+              onClick={onExit}
+              aria-label="Leave game"
+              title="Leave game"
+            >
               ✕
             </button>
           </div>
         </div>
 
-        {/* Announcement banner */}
-        {game.recent_message && (
-          <div
-            className="mx-4 bg-gold/20 border border-gold/30 rounded-xl px-4 py-2 text-sm text-center text-gold-light"
-            role="status"
-            aria-live="polite"
-          >
-            {game.recent_message}
-          </div>
-        )}
+        {/* Announcement banner.
+            The slot is always in the tree at a fixed height: mounting and
+            unmounting it pushed the table, hand and action row down and back
+            up every time the server sent a message. */}
+        <div className="mx-4 min-h-[2.25rem]" role="status" aria-live="polite">
+          {game.recent_message && (
+            <div className="bg-gold/20 border border-gold/30 rounded-xl px-4 py-2 text-sm text-center text-gold-light">
+              {game.recent_message}
+            </div>
+          )}
+        </div>
 
         {/* Table */}
         <div className="flex-1 flex items-center justify-center py-4">
@@ -199,19 +207,26 @@ export default function GameBoard({ mode, onExit }) {
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions.
+            Knock is always rendered, disabled when unavailable, so the row
+            keeps its shape — previously it appeared and vanished each turn and
+            shunted the log button sideways. Keeping it visible also shows the
+            action exists before it first becomes legal. */}
         <div className="flex gap-2 px-4">
-          {canKnock && (
-            <button className="btn btn-danger flex-1" onClick={handleKnock}>
-              ✊ Knock
-            </button>
-          )}
           <button
-            className="btn btn-secondary"
+            className="btn btn-danger flex-1"
+            onClick={handleKnock}
+            disabled={!canKnock}
+            title={canKnock ? 'End the round — everyone else gets one last turn' : 'You can only knock on your turn, before drawing'}
+          >
+            ✊ Knock
+          </button>
+          <button
+            className="btn btn-secondary w-24"
             onClick={() => setShowLog((v) => !v)}
             aria-expanded={showLog}
           >
-            {showLog ? 'Hide log' : '📋 Log'}
+            {showLog ? 'Hide' : '📋 Log'}
           </button>
         </div>
 
