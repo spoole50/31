@@ -176,13 +176,14 @@ curl http://localhost:8000/api/health
 | Method | Path | Description |
 |---|---|---|
 | POST | `/api/tables` | Create a table |
-| GET | `/api/tables/public` | List public tables |
-| POST | `/api/tables/{id}/join` | Join by table ID |
-| POST | `/api/tables/join-by-code` | Join using invite code |
+| GET | `/api/tables` · `/api/tables/public` | List public tables |
+| GET | `/api/tables/{id}` | Get table info |
+| POST | `/api/tables/join` | Join by `invite_code` **or** `table_id` |
 | POST | `/api/tables/{id}/start` | Start game (host only) |
 | POST | `/api/tables/{id}/restart` | Restart a finished game (host only) |
 | POST | `/api/tables/{id}/leave` | Leave table |
 | POST | `/api/tables/{id}/add-ai` | Add AI player (host only) |
+| GET | `/api/player/{id}/table` | Get a player's current table |
 
 > **There is deliberately no REST endpoint for reading game state or submitting
 > game actions.** Both used to exist and both were unauthenticated — the read
