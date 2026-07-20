@@ -14,9 +14,6 @@ Usage
     store.add_game(game_state)
     store.get_game(game_id)
 
-    store.add_table(table)
-    store.get_table(table_id)
-
     # Socket ↔ player tracking
     store.register_sid(sid, player_id)
     store.get_player_for_sid(sid)
@@ -39,9 +36,10 @@ class GameStore:
     """In-memory store with optional Redis persistence layer."""
 
     def __init__(self):
-        # In-memory primary store — holds live Python objects
+        # In-memory primary store — holds live Python objects.
+        # Only *local* (non-table) games live here; table games are owned by
+        # table_logic.table_manager and reached via table.game_state.
         self._games: Dict[str, object] = {}       # game_id -> GameState
-        self._tables: Dict[str, object] = {}      # table_id -> GameTable
 
         # Socket tracking (never persisted — per-process only)
         self._sid_to_player: Dict[str, str] = {}  # socket sid -> player_id
@@ -63,22 +61,6 @@ class GameStore:
 
     def all_games(self) -> Dict[str, object]:
         return dict(self._games)
-
-    # ------------------------------------------------------------------
-    # Table CRUD
-    # ------------------------------------------------------------------
-
-    def add_table(self, table) -> None:
-        self._tables[table.table_id] = table
-
-    def get_table(self, table_id: str) -> Optional[object]:
-        return self._tables.get(table_id)
-
-    def remove_table(self, table_id: str) -> None:
-        self._tables.pop(table_id, None)
-
-    def all_tables(self) -> Dict[str, object]:
-        return dict(self._tables)
 
     # ------------------------------------------------------------------
     # Socket ↔ Player tracking
@@ -111,9 +93,13 @@ class GameStore:
     # ------------------------------------------------------------------
 
     def stats(self) -> dict:
+        # Tables are owned by table_manager, not this store — import locally to
+        # avoid a circular import at module load.
+        from table_logic import table_manager
+
         return {
             "games": len(self._games),
-            "tables": len(self._tables),
+            "tables": len(table_manager.tables),
             "connected_players": len(self._sid_to_player),
             "redis": _redis_client is not None,
         }

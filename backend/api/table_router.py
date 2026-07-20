@@ -8,12 +8,11 @@ these endpoints handle lobby creation, joining, and control actions.
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 
 from table_logic import table_manager, TableStatus, AIDifficulty
 from core.socket import sio
-from core.store import store
-from utils.serializers import game_state_to_dict, table_to_dict
+from utils.serializers import table_to_dict
 
 router = APIRouter()
 
@@ -76,7 +75,6 @@ def create_table(req: CreateTableRequest):
         is_private=req.is_private,
         password=req.password,
     )
-    store.add_table(table)
     return table_to_dict(table)
 
 
@@ -203,88 +201,20 @@ def add_ai(table_id: str, req: AddAIRequest):
 
 
 # ── Game state ────────────────────────────────────────────────────────────────
-
-@router.get("/tables/{table_id}/game")
-def get_table_game(table_id: str, player_id: Optional[str] = None):
-    table = table_manager.get_table(table_id)
-    if not table:
-        raise HTTPException(status_code=404, detail="Table not found")
-
-    if not table.game_state:
-        raise HTTPException(status_code=400, detail="No game in progress")
-
-    if player_id and player_id in table.players:
-        table.update_player_activity(player_id)
-
-    game_player_id = table.get_game_player_id(player_id) if player_id else None
-    payload = game_state_to_dict(table.game_state, requesting_player_id=game_player_id)
-    if game_player_id:
-        payload["your_player_id"] = game_player_id
-    return payload
-
-
-@router.post("/tables/{table_id}/game/{action}")
-def table_game_action(table_id: str, action: str, data: dict):
-    """Perform a game action within a table (draw / discard / knock / ai-turn)."""
-    from game_logic import draw_card, discard_card, knock
-    from ai.engine import advanced_ai_turn
-
-    table = table_manager.get_table(table_id)
-    if not table:
-        raise HTTPException(status_code=404, detail="Table not found")
-
-    if not table.game_state:
-        raise HTTPException(status_code=400, detail="No game in progress")
-
-    if table.status != TableStatus.PLAYING:
-        raise HTTPException(status_code=400, detail="Game is not in playing state")
-
-    player_id = data.get("player_id")
-    if not player_id:
-        raise HTTPException(status_code=400, detail="player_id is required")
-
-    if player_id not in table.players:
-        raise HTTPException(status_code=403, detail="Player not in this table")
-
-    table.update_player_activity(player_id)
-
-    game_player_id = table.get_game_player_id(player_id)
-    if not game_player_id:
-        raise HTTPException(status_code=400, detail="Player not mapped to game")
-
-    game_state = table.game_state
-
-    # *** Enforce turn timer before accepting any action ***
-    if game_state.current_player_id == game_player_id and game_state.check_turn_timeout():
-        game_state.handle_turn_timeout()
-        raise HTTPException(status_code=400, detail="Turn timed out — turn was skipped automatically")
-
-    success = False
-    if action == "draw":
-        success = draw_card(game_state, game_player_id, data.get("from_discard", False))
-    elif action == "discard":
-        ci = data.get("card_index")
-        if ci is None:
-            raise HTTPException(status_code=400, detail="card_index is required")
-        success = discard_card(game_state, game_player_id, ci)
-    elif action == "knock":
-        success = knock(game_state, game_player_id)
-    elif action == "ai-turn":
-        current = game_state.players.get(game_state.current_player_id)
-        if not current or not current.is_ai:
-            raise HTTPException(status_code=400, detail="Current player is not AI")
-        success = advanced_ai_turn(game_state, game_state.current_player_id)
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
-
-    if not success:
-        raise HTTPException(status_code=400, detail=f"Invalid {action} action")
-
-    if game_state.is_game_over():
-        table.status = TableStatus.FINISHED
-
-    game_player_id_for_response = table.get_game_player_id(player_id)
-    return game_state_to_dict(game_state, requesting_player_id=game_player_id_for_response)
+#
+# There are deliberately NO REST endpoints for reading game state or submitting
+# game actions.  Both used to exist here and both were unauthenticated:
+#
+#   GET  /tables/{id}/game?player_id=X   revealed X's hand to any caller, and
+#        opponent IDs are published to the whole table in table_to_dict.
+#   POST /tables/{id}/game/{action}      accepted actions as any player_id with
+#        no socket-session check, unlike the Socket.IO path.
+#
+# Everything now goes through socket_handlers.py, which verifies that the
+# socket session actually belongs to the claimed player before touching state,
+# and emits per-player payloads with opponents' hands hidden.  Game state
+# reaches a client on join (`join_table` → `game_updated`) and after every
+# action — there is no need to fetch it over REST.
 
 
 # ── Player lookup ─────────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.config import ALLOWED_ORIGINS
 from core.socket import sio
 from core.store import store
 from api.game_router import router as game_router
@@ -35,6 +36,7 @@ import api.socket_handlers  # noqa: F401  — registers all @sio.on handlers
 
 CLEANUP_INTERVAL_SECONDS = 120  # run every 2 minutes
 GAME_IDLE_TIMEOUT_SECONDS = 1800  # 30 minutes — remove games idle longer than this
+TABLE_IDLE_TIMEOUT_SECONDS = 3600  # 1 hour — remove tables with no player activity
 
 
 async def _periodic_cleanup():
@@ -44,24 +46,54 @@ async def _periodic_cleanup():
     while True:
         await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
         try:
-            removed = table_manager.cleanup_old_tables()
-            if removed:
-                print(f"[CLEANUP] Removed {removed} stale table(s)")
-
-            # Remove games that have been idle for longer than the timeout.
-            # This covers both local (non-table) games and orphaned table games.
             now = datetime.now()
-            stale_game_ids = []
-            for gid, game in store.all_games().items():
-                idle = (now - game.last_activity).total_seconds()
-                if idle > GAME_IDLE_TIMEOUT_SECONDS:
-                    stale_game_ids.append(gid)
+
+            # ── Local (non-table) games ───────────────────────────────────────
+            # store only ever holds local games; table games live on the table.
+            stale_game_ids = [
+                gid
+                for gid, game in store.all_games().items()
+                if (now - game.last_activity).total_seconds() > GAME_IDLE_TIMEOUT_SECONDS
+            ]
             for gid in stale_game_ids:
                 store.remove_game(gid)
             if stale_game_ids:
-                print(f"[CLEANUP] Removed {len(stale_game_ids)} idle game(s)")
+                print(f"[CLEANUP] Removed {len(stale_game_ids)} idle local game(s)")
+
+            # ── Finished tables older than 24h ────────────────────────────────
+            removed = table_manager.cleanup_old_tables()
+            if removed:
+                print(f"[CLEANUP] Removed {removed} old finished table(s)")
+
+            # ── Abandoned tables in any status ────────────────────────────────
+            # cleanup_old_tables only reaps FINISHED tables, so a table left in
+            # WAITING or PLAYING (everyone closed their tab, host never had
+            # anyone join) would otherwise live until the process restarts —
+            # holding a whole GameState on a 0.5 GB instance.
+            idle_table_ids = [
+                tid
+                for tid, table in table_manager.tables.items()
+                if _table_idle_seconds(table, now) > TABLE_IDLE_TIMEOUT_SECONDS
+            ]
+            for tid in idle_table_ids:
+                table_manager.remove_table(tid)
+            if idle_table_ids:
+                print(f"[CLEANUP] Removed {len(idle_table_ids)} abandoned table(s)")
         except Exception as e:
             print(f"[CLEANUP] Error during periodic cleanup: {e}")
+
+
+def _table_idle_seconds(table, now) -> float:
+    """Seconds since anything happened at this table.
+
+    Uses the most recent player activity, falling back to table creation time
+    for a table nobody has ever interacted with.
+    """
+    timestamps = [p.last_activity for p in table.players.values() if p.last_activity]
+    if table.game_state:
+        timestamps.append(table.game_state.last_activity)
+    latest = max(timestamps) if timestamps else table.created_at
+    return (now - latest).total_seconds()
 
 
 @asynccontextmanager
@@ -83,9 +115,9 @@ fastapi_app = FastAPI(
 
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 fastapi_app.include_router(game_router, prefix="/api")

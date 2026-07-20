@@ -474,6 +474,27 @@ class TableManager:
     def get_table(self, table_id: str) -> Optional[GameTable]:
         """Get table by ID"""
         return self.tables.get(table_id)
+
+    def remove_table(self, table_id: str) -> bool:
+        """Delete a table outright and drop every player mapping pointing at it.
+
+        Used by the periodic cleanup sweep for abandoned tables. Unlike
+        leave_table this does not care about the table's status or who is
+        still nominally seated at it.
+        """
+        if table_id not in self.tables:
+            return False
+
+        stale_players = [
+            player_id
+            for player_id, tid in self.player_to_table.items()
+            if tid == table_id
+        ]
+        for player_id in stale_players:
+            del self.player_to_table[player_id]
+
+        del self.tables[table_id]
+        return True
     
     def list_public_tables(self) -> List[GameTable]:
         """List all public tables that can be joined"""
