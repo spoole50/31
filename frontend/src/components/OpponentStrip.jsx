@@ -17,7 +17,7 @@ export default function OpponentStrip({ players, currentPlayerId, myPlayerId }) 
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm
               transition-all duration-300
               ${isActive
-                ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-200'
+                ? 'bg-gold/20 border border-gold/40 text-gold-light'
                 : 'bg-white/5 border border-white/10 text-white/70'}
               ${player.is_eliminated ? 'opacity-30 line-through' : ''}
             `}

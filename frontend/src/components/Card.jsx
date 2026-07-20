@@ -12,9 +12,12 @@
  */
 
 import { motion } from 'framer-motion'
+import { felt, SUIT_INK } from '../lib/theme.js'
 
 const SUIT_SYMBOLS = { hearts: '♥', diamonds: '♦', spades: '♠', clubs: '♣' }
 const RED_SUITS = new Set(['hearts', 'diamonds'])
+
+const CARD_BACK_PATTERN = `repeating-linear-gradient(45deg,${felt.DEFAULT} 0 6px,${felt.light} 6px 12px)`
 
 const FACE_GLYPHS = { J: 'J', Q: 'Q', K: 'K' }
 
@@ -25,7 +28,7 @@ export default function Card({ card, selected = false, onClick, disabled = false
     return (
       <motion.div
         className={`playing-card back ${small ? 'w-9' : 'w-16'}`}
-        style={{ background: 'repeating-linear-gradient(45deg,#1a4731 0 6px,#235c3f 6px 12px)' }}
+        style={{ background: CARD_BACK_PATTERN }}
         whileHover={disabled ? {} : { y: -4 }}
         initial={{ rotateY: 90, opacity: 0 }}
         animate={{ rotateY: 0, opacity: 1 }}
@@ -61,7 +64,7 @@ export default function Card({ card, selected = false, onClick, disabled = false
         stiffness: 300,
         damping: 22,
       }}
-      style={{ color: isRed ? '#dc2626' : '#111' }}
+      style={{ color: isRed ? SUIT_INK.red : SUIT_INK.black }}
       title={`${value}${symbol}`}
     >
       {/* Top-left corner */}

@@ -157,6 +157,7 @@ const useGameStore = create((set, get) => ({
   onlineGamePlayerId: null,  // game-level player ID (different from table player ID)
   onlineError: null,
   onlineLoading: false,
+  notice: null,                 // transient informational message for the toast
   disconnectedPlayers: [],
   socketConnected: false,
   _heartbeatInterval: null,
@@ -302,9 +303,12 @@ const useGameStore = create((set, get) => ({
       set({ onlineGame: game, onlineGamePlayerId: game.your_player_id ?? null })
     })
 
-    socket.on('player_disconnected', ({ player_id, player_name, new_host_id }) => {
+    socket.on('player_disconnected', ({ player_id, player_name, new_host_id, may_reconnect }) => {
       set((s) => ({
         disconnectedPlayers: [...s.disconnectedPlayers, { player_id, player_name }],
+        notice: may_reconnect
+          ? `${player_name} disconnected — waiting for them to reconnect`
+          : `${player_name} left the game`,
         // If host changed, update our local table optimistically
         table: s.table && new_host_id
           ? { ...s.table, host_id: new_host_id }
@@ -313,14 +317,14 @@ const useGameStore = create((set, get) => ({
     })
 
     socket.on('turn_timeout', ({ player_name }) => {
-      // Could show a toast — for now just log
-      console.info(`[timeout] ${player_name}'s turn was skipped`)
+      set({ notice: `${player_name}'s turn timed out and was skipped` })
     })
 
     socket.on('error', ({ message }) => set({ onlineError: message }))
   },
 
   clearOnlineError: () => set({ onlineError: null }),
+  clearNotice: () => set({ notice: null }),
 }))
 
 export default useGameStore

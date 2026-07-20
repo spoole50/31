@@ -64,7 +64,7 @@ export default function PlayerHand({
           <span className="badge bg-orange-500/20 text-orange-300 text-xs">Knocked</span>
         )}
         {isActivePlayer && (
-          <span className="badge bg-yellow-500/20 text-yellow-300 text-xs">
+          <span className="badge bg-gold/20 text-gold-light text-xs">
             {gamePhase === 'final_round' ? 'Final turn' : 'Active'}
           </span>
         )}

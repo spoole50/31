@@ -68,7 +68,7 @@ export default function OnlineLobby() {
               max={8}
               value={maxPlayers}
               onChange={(e) => setMaxPlayers(Number(e.target.value))}
-              className="w-full accent-yellow-400"
+              className="w-full accent-gold"
             />
           </div>
           {onlineError && <p className="text-red-400 text-sm">{onlineError}</p>}
