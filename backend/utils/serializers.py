@@ -69,6 +69,9 @@ def game_state_to_dict(
         "recent_message": game_state.recent_message,
         "game_log": game_state.game_log,
         "turn_time_remaining": game_state.get_turn_time_remaining(),
+        # Hands in here are from a round that is already over, so revealing
+        # them to everyone is fine (and is how the game is played at a table).
+        "last_round": game_state.last_round,
     }
 
 

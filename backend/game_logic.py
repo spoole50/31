@@ -112,6 +112,10 @@ class GameState:
     game_log: List[str] = field(default_factory=list)  # Play-by-play log
     host_player_id: str = ""  # Track the original host for first round
     last_round_winner_id: str = ""  # Track who won the previous round
+    # Snapshot of the round that just ended (hands, scores, who lost a life).
+    # start_new_round() redeals immediately, so without this clients never see
+    # how a round was decided.
+    last_round: Optional[dict] = None
     current_turn_start_time: Optional[datetime] = None  # Track when current player's turn started
     last_activity: datetime = field(default_factory=datetime.now)  # Last REST/WS interaction
     
@@ -422,12 +426,8 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
             game_state.log_instant_win(player.name, score)
             # Set message for instant win
             game_state.recent_message = f"{player.name} got 31 points! Instant win!"
-            # Everyone else loses a life
-            for other_player in game_state.players.values():
-                if other_player.id != player_id:
-                    logger.debug(f"[INSTANT_WIN_LOSS] {other_player.name} loses a life due to instant win")
-                    other_player.lose_life()
-            end_round(game_state, skip_life_loss=True)  # Skip additional life loss
+            # Everyone else loses a life (applied inside end_round)
+            end_round(game_state, instant_winner_id=player_id)
             return True
         
         # Move to next player
@@ -469,8 +469,16 @@ def knock(game_state: GameState, player_id: str) -> bool:
     
     return True
 
-def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
-    """End the current round and determine who loses lives"""
+def end_round(
+    game_state: GameState,
+    skip_life_loss: bool = False,
+    instant_winner_id: Optional[str] = None,
+) -> None:
+    """End the current round and determine who loses lives.
+
+    instant_winner_id — set when a player hit 31: every other active player
+    loses a life instead of only the lowest scorer.
+    """
     # Calculate scores for all active players
     player_scores = {}
     for player in game_state.get_active_players():
@@ -500,24 +508,47 @@ def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
         }
     game_state.log_round_end(round_results)
     
-    # Only apply life loss for lowest scores if not skipping (i.e., not a 31-point win)
-    if not skip_life_loss:
-        # Find the lowest score(s)
+    # Capture hands now: start_new_round() below redeals them
+    final_hands = {
+        pid: [card.to_dict() for card in game_state.players[pid].hand]
+        for pid in player_scores
+    }
+
+    if instant_winner_id:
+        losers = [pid for pid in player_scores if pid != instant_winner_id]
+    elif not skip_life_loss:
+        # Lowest score(s) lose a life
         min_score = min(player_scores.values())
         losers = [pid for pid, score in player_scores.items() if score == min_score]
-        
         logger.debug(f"[ROUND_END] Min score: {min_score}, Losers: {[game_state.players[pid].name for pid in losers]}")
-        
-        # Players with lowest score lose a life
-        for player_id in losers:
-            player = game_state.players[player_id]
-            logger.debug(f"[LIFE_LOSS] {player.name} loses a life (score: {player_scores[player_id]})")
-            player.lose_life()
-            # lose_life() already sets is_eliminated when lives reach 0
-            if player.is_eliminated:
-                game_state.log_player_elimination(player.name)
     else:
-        logger.debug(f"[ROUND_END] Skipping life loss (instant win scenario)")
+        losers = []
+        logger.debug("[ROUND_END] Skipping life loss")
+
+    for player_id in losers:
+        player = game_state.players[player_id]
+        logger.debug(f"[LIFE_LOSS] {player.name} loses a life (score: {player_scores[player_id]})")
+        player.lose_life()
+        # lose_life() already sets is_eliminated when lives reach 0
+        if player.is_eliminated:
+            game_state.log_player_elimination(player.name)
+
+    game_state.last_round = {
+        "round_number": game_state.round_number,
+        "instant_winner_id": instant_winner_id,
+        "knocked_player_id": game_state.knocked_player_id or None,
+        "results": [
+            {
+                "player_id": pid,
+                "hand": final_hands[pid],
+                "score": score,
+                "lost_life": pid in losers,
+                "lives": game_state.players[pid].lives,
+                "eliminated": game_state.players[pid].is_eliminated,
+            }
+            for pid, score in sorted(player_scores.items(), key=lambda kv: -kv[1])
+        ],
+    }
     
     # Check if game is over
     active_players = game_state.get_active_players()
