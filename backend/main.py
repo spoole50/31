@@ -34,6 +34,7 @@ from api.game_router import router as game_router
 from api.table_router import router as table_router
 from table_logic import table_manager
 import api.socket_handlers  # noqa: F401  — registers all @sio.on handlers
+from api.socket_handlers import enforce_turn_timeouts
 
 # LOG_LEVEL=DEBUG surfaces per-turn game events (timeouts, life loss, round
 # results). App Runner ships stdout to CloudWatch Logs as-is.
@@ -97,6 +98,21 @@ async def _periodic_cleanup():
             logger.exception(f"[CLEANUP] Error during periodic cleanup: {e}")
 
 
+# ── Turn timer ────────────────────────────────────────────────────────────────
+
+TURN_TIMER_POLL_SECONDS = 1
+
+
+async def _turn_timer_loop():
+    """Skip online turns that ran out the clock (see enforce_turn_timeouts)."""
+    while True:
+        await asyncio.sleep(TURN_TIMER_POLL_SECONDS)
+        try:
+            await enforce_turn_timeouts()
+        except Exception as e:
+            logger.exception(f"[TURN_TIMER] Error enforcing turn timeouts: {e}")
+
+
 def _table_idle_seconds(table, now) -> float:
     """Seconds since anything happened at this table.
 
@@ -112,10 +128,14 @@ def _table_idle_seconds(table, now) -> float:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start the periodic cleanup task when the app starts."""
-    task = asyncio.create_task(_periodic_cleanup())
+    """Start the background tasks (cleanup, turn timer) for the app's lifetime."""
+    tasks = [
+        asyncio.create_task(_periodic_cleanup()),
+        asyncio.create_task(_turn_timer_loop()),
+    ]
     yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────

@@ -307,3 +307,28 @@ def test_cors_preflight_allows_the_token_header(client):
     })
     assert r.status_code == 200
     assert "x-player-token" in r.headers.get("access-control-allow-headers", "").lower()
+
+
+# ── Turn timer ────────────────────────────────────────────────────────────────
+
+def test_idle_online_turn_is_skipped_without_any_action(client):
+    """The background sweep skips an expired turn on its own — the idle player
+    never has to send anything for the table to move on."""
+    import time
+    from datetime import datetime, timedelta
+    from table_logic import table_manager
+
+    table, host_tok, _ = _seat_two(client, "p_idle1", "p_idle2")
+    tid = table["table_id"]
+    assert client.post(f"/api/tables/{tid}/start", json={"host_id": "p_idle1"},
+                       headers=_tok(host_tok)).status_code == 200
+
+    game = table_manager.get_table(tid).game_state
+    stalled = game.current_player_id
+    game.current_turn_start_time = datetime.now() - timedelta(seconds=60)
+
+    deadline = time.monotonic() + 5
+    while game.current_player_id == stalled and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert game.current_player_id != stalled
+    assert any("timed out" in line for line in game.game_log)

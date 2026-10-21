@@ -19,8 +19,9 @@ Events the SERVER sends to clients (room = table_id):
 
 Key improvements over v1 polling:
   * Disconnect is detected the instant the socket closes (no 65-second wait)
-  * Turn timer is checked on EVERY game_action — expired turns are rejected
-    and auto-skipped before the next player is allowed to act
+  * Turn timer is enforced by a background sweep (enforce_turn_timeouts, run
+    from main.py) so an idle player can't stall the table, and re-checked on
+    every game_action
   * Host migration is instant and broadcast to the room
   * AI turns are executed server-side and broadcast immediately after a human move
 """
@@ -380,18 +381,8 @@ async def on_game_action(sid, data):
     # ── Turn timer enforcement ─────────────────────────────────────────────────
     # If this player's turn has expired, skip them automatically and notify room.
     if game.current_player_id == game_player_id and game.check_turn_timeout():
-        player_name = table.players[player_id].name
-        game.add_to_game_log(f"⏰ {player_name}'s turn timed out")
-        game.handle_turn_timeout(timeout_seconds=0)  # force skip
-
-        await sio.emit(
-            "turn_timeout",
-            {"player_id": player_id, "player_name": player_name},
-            room=table_id,
-        )
-        await _emit_game_to_table(table)
+        await _skip_timed_out_turn(table)
         await _error(sid, "Your turn timed out and was skipped automatically")
-        await _run_ai_turns_if_needed(table_id)
         return
 
     # ── Execute action ─────────────────────────────────────────────────────────
@@ -427,6 +418,56 @@ async def on_game_action(sid, data):
 
     # ── Chain AI turns ────────────────────────────────────────────────────────
     await _run_ai_turns_if_needed(table_id)
+
+
+# ── Turn timer ────────────────────────────────────────────────────────────────
+
+async def enforce_turn_timeouts() -> None:
+    """Skip every human turn that has run past the limit.
+
+    One pass over the tables; main.py calls it on a short interval. Before
+    this, an expired turn was only noticed when that same player next sent
+    an action, so someone who simply stopped playing froze the table.
+    """
+    for table in list(table_manager.tables.values()):
+        game = table.game_state
+        if not game or table.status != TableStatus.PLAYING:
+            continue
+        current = game.players.get(game.current_player_id)
+        # AI turns are driven by _run_ai_turns_if_needed, never timed out
+        if current and not current.is_ai and game.check_turn_timeout():
+            await _skip_timed_out_turn(table, run_ai_in_background=True)
+
+
+async def _skip_timed_out_turn(table, run_ai_in_background: bool = False) -> None:
+    """Force-skip the current (human) turn, tell the room, and resume play.
+
+    run_ai_in_background — the sweep handles many tables, so it must not sit
+    through one table's AI turns (each pauses for the client animation).
+    """
+    game = table.game_state
+    game_player_id = game.current_player_id
+    player_name = game.players[game_player_id].name
+    table_player_id = next(
+        (tp for tp, gp in table.player_id_mapping.items() if gp == game_player_id),
+        game_player_id,
+    )
+
+    game.handle_turn_timeout(timeout_seconds=0)  # logs the timeout itself
+    if game.is_game_over():
+        table.status = TableStatus.FINISHED
+
+    await sio.emit(
+        "turn_timeout",
+        {"player_id": table_player_id, "player_name": player_name},
+        room=table.table_id,
+    )
+    await _emit_game_to_table(table)
+
+    if run_ai_in_background:
+        asyncio.create_task(_run_ai_turns_if_needed(table.table_id))
+    else:
+        await _run_ai_turns_if_needed(table.table_id)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────

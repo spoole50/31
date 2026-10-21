@@ -192,7 +192,7 @@ async def start_game(table_id: str, req: StartGameRequest, player_token: PlayerT
 
 
 @router.post("/tables/{table_id}/restart")
-def restart_game(table_id: str, req: RestartGameRequest, player_token: PlayerToken = None):
+async def restart_game(table_id: str, req: RestartGameRequest, player_token: PlayerToken = None):
     table = table_manager.get_table(table_id)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
@@ -207,7 +207,12 @@ def restart_game(table_id: str, req: RestartGameRequest, player_token: PlayerTok
     success = table_manager.restart_table_game(table_id, req.host_id)
     if not success:
         raise HTTPException(status_code=400, detail="Could not restart game")
-    return table_to_dict(table_manager.get_table(table_id))
+
+    # Everyone else is still on the game-over screen; this sends them back to
+    # the lobby for the rematch.
+    updated = table_to_dict(table_manager.get_table(table_id))
+    await sio.emit("table_updated", updated, room=table_id)
+    return updated
 
 
 @router.post("/tables/{table_id}/add-ai")
