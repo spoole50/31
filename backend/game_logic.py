@@ -600,5 +600,3 @@ def start_new_round(game_state: GameState) -> None:
         else:
             game_state.set_current_player(active_players[0].id)
             game_state.add_to_game_log(f"🃏 {active_players[0].name} goes first")
-
-# Legacy functions for backward compatibility

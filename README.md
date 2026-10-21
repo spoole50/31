@@ -36,7 +36,8 @@ Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://gi
 - **AI difficulty levels** — Easy, Medium, Hard, Expert
 - **Optional turn timer** — 45-second countdown per turn (toggle in setup)
 - **Online multiplayer** — create or join tables with a 6-character invite code
-- **Real-time via WebSocket** — Socket.IO replaces polling; instant disconnect detection
+- **Real-time via Socket.IO** — server pushes every move; long-polling in production
+  (App Runner has no WebSockets), real WebSockets locally
 - **Card animations** — spring flip-in, draw pop, Framer Motion throughout
 - **31 celebration** — suit-symbol confetti burst on instant win
 - **Dark casino theme** — mobile-first Tailwind CSS, gold-on-felt design
@@ -50,7 +51,7 @@ Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://gi
 | Frontend | React 18, Vite 5, Tailwind CSS 3, Zustand 4, Framer Motion 11, React Router v6 |
 | Realtime | socket.io-client 4, 10 s heartbeat, reconnect on drop |
 | Backend | Python 3.11, FastAPI, python-socketio 5, uvicorn |
-| State | In-memory (single worker) · Redis stub ready for multi-worker scale-out |
+| State | In-memory, single process (a redeploy drops live games) |
 | Hosting | AWS Amplify (frontend) · AWS App Runner (backend) |
 | Container | Docker (linux/amd64), UvicornWorker |
 
@@ -100,7 +101,7 @@ lsof -ti :8000 | xargs kill
 
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0,"redis":false}
+# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0}
 ```
 
 ---
@@ -114,16 +115,21 @@ curl http://localhost:8000/api/health
 │   ├── game_logic.py         # Core rules, GameState, Player, Card
 │   ├── table_logic.py        # Table / lobby management
 │   ├── core/
+│   │   ├── config.py         # CORS allowlist (ALLOWED_ORIGINS)
+│   │   ├── limits.py         # Per-IP create rate limit + capacity caps
 │   │   ├── socket.py         # Shared AsyncServer singleton
-│   │   └── store.py          # Centralised GameStore (+ Redis stub)
+│   │   └── store.py          # In-memory GameStore + socket ↔ player map
 │   ├── api/
 │   │   ├── game_router.py    # Local game REST endpoints
 │   │   ├── table_router.py   # Multiplayer table REST endpoints
 │   │   └── socket_handlers.py# All WebSocket events
 │   ├── ai/
 │   │   └── engine.py         # AI strategy (4 difficulty levels)
-│   └── utils/
-│       └── serializers.py    # Game state serialization / deserialization
+│   ├── utils/
+│   │   └── serializers.py    # Game state → JSON (hides opponents' hands)
+│   ├── tests/test_api.py     # pytest suite (REST, CORS, limits, seat tokens)
+│   └── scripts/socket_smoke.py # Socket.IO smoke test against a live server
+├── .github/workflows/        # ci.yml (tests) · deploy-backend.yml (OIDC → App Runner)
 ├── frontend/
 │   ├── index.html            # Vite root
 │   ├── vite.config.js
@@ -149,7 +155,8 @@ curl http://localhost:8000/api/health
 │           ├── TurnTimer.jsx  # SVG ring countdown
 │           ├── OpponentStrip.jsx
 │           ├── GameLog.jsx
-│           └── RulesModal.jsx
+│           ├── RulesModal.jsx
+│           └── …              # overlays, toast, game-over screen
 ├── docker-compose.yml
 └── amplify.yml
 ```
@@ -196,7 +203,7 @@ curl http://localhost:8000/api/health
 
 | Direction | Event | Description |
 |---|---|---|
-| → server | `join_table` | Join a table room |
+| → server | `join_table` | Join a table room (needs the seat `player_token`) |
 | → server | `leave_table` | Leave a table room |
 | → server | `game_action` | `draw` / `discard` / `knock` |
 | → server | `ping` | Heartbeat (every 10 s) |

@@ -7,10 +7,9 @@ services:
       - "8000:8000"
     # No env needed for local dev: core/config.py always allows
     # http://localhost:3000, and state is in-memory by default.
-    # Uncomment to test a non-localhost frontend origin or enable Redis:
+    # Uncomment to test a non-localhost frontend origin:
     # environment:
     #   - ALLOWED_ORIGINS=https://31.spoole.fyi
-    #   - REDIS_URL=redis://redis:6379/0
     #
     # Uncomment for hot-reload against your working tree:
     # volumes:

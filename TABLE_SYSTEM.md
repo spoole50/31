@@ -2,7 +2,7 @@
 
 ## Overview
 
-Real-time online multiplayer powered by Socket.IO WebSockets. Players create or join tables, invite friends via a 6-character code, mix in AI opponents, and play together with live game-state updates.
+Real-time online multiplayer powered by Socket.IO (long-polling on App Runner, WebSockets locally). Players create or join tables, invite friends via a 6-character code, mix in AI opponents, and play together with live game-state updates.
 
 ## Features
 
@@ -16,7 +16,8 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 - **Status tracking** — waiting → ready → playing → finished
 
 ### Real-time Play
-- **Socket.IO WebSockets** — instant state push, no polling
+- **Socket.IO push** — the server sends state after every move (over long-polling
+  in production, since App Runner has no WebSockets)
 - **Per-player hand hiding** — each player sees only their own cards; opponents show `?`
 - **`your_player_id` field** — server tells each client which game player they are (no name matching)
 - **AI turns server-side** — AI moves execute via `asyncio.sleep` delays and are broadcast per-move
@@ -35,7 +36,8 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 ### Creating a Table
 1. From the main menu → **Play Online**
 2. Enter your name
-3. Click **Create Table** → configure name, max players, privacy, password
+3. Click **Create Table** → set a table name and max players (the table is
+   always private; passwords exist in the API but not in the UI)
 4. Share the invite code with friends
 
 ### Joining a Table

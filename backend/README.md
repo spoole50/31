@@ -12,16 +12,20 @@ backend/
 ├── Dockerfile
 ├── requirements.txt
 ├── core/
+│   ├── config.py         # CORS allowlist (ALLOWED_ORIGINS)
+│   ├── limits.py         # Per-IP create rate limit + capacity caps
 │   ├── socket.py         # Shared AsyncServer singleton
-│   └── store.py          # Centralised GameStore (+ optional Redis)
+│   └── store.py          # In-memory GameStore + socket ↔ player map
 ├── api/
 │   ├── game_router.py    # Local game REST endpoints  (/api/games/…)
 │   ├── table_router.py   # Multiplayer table REST endpoints (/api/tables/…)
 │   └── socket_handlers.py# All WebSocket event handlers
 ├── ai/
 │   └── engine.py         # AI strategy (4 difficulty levels)
-└── utils/
-    └── serializers.py    # Game state ↔ dict serialisation (per-player hand hiding)
+├── utils/
+│   └── serializers.py    # Game state → dict (per-player hand hiding)
+├── tests/test_api.py     # pytest suite
+└── scripts/socket_smoke.py # Socket.IO smoke test (needs a running server)
 ```
 
 ## Running locally
@@ -31,6 +35,13 @@ cd backend
 source ../.venv/bin/activate          # or: python -m venv ../.venv && …
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
+```
+
+Tests:
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 Or via Docker (from repo root):
@@ -78,7 +89,7 @@ docker compose up --build
 
 | Direction | Event | Payload |
 |---|---|---|
-| → server | `join_table` | `{table_id, player_id, player_name}` |
+| → server | `join_table` | `{table_id, player_id, player_name, player_token}` |
 | → server | `leave_table` | `{table_id, player_id}` |
 | → server | `game_action` | `{table_id, player_id, action, ...params}` |
 | → server | `ping` | `{player_id}` — heartbeat every 10 s |
@@ -99,7 +110,7 @@ docker compose up --build
 
 ## Architecture Notes
 
-- Game state is in-memory (single uvicorn worker). Set `REDIS_URL` to enable persistence for multi-worker scale-out.
+- Game state is in-memory (single uvicorn worker), so a redeploy drops live games and App Runner must stay at max 1 instance.
 - Disconnected players get a 30-second grace period before elimination; voluntary leavers are eliminated immediately.
 - AI turns execute server-side via `asyncio.sleep` delays and are broadcast after each move.
 - A background cleanup task removes stale tables and orphaned games every 2 minutes.

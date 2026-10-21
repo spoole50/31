@@ -1,11 +1,9 @@
 """
 Centralised state store.
 
-Holds live Python objects in memory (same as v1) while providing an interface
-for an optional Redis persistence layer.  When REDIS_URL is set in the
-environment each mutation is serialised to Redis so a container restart can
-restore state.  When REDIS_URL is absent the app behaves exactly like v1 — all
-state is in-process memory.
+Holds live Python objects in process memory. Nothing is persisted, so a
+redeploy or restart drops every game and table, and the service must run as a
+single process (App Runner pinned to max 1 instance).
 
 Usage
 -----
@@ -20,28 +18,18 @@ Usage
     store.remove_sid(sid)
 """
 
-import os
 from typing import Dict, Optional
-
-# Optional redis dependency — app degrades gracefully without it.
-try:
-    import redis as _redis
-    _REDIS_URL = os.getenv("REDIS_URL")
-    _redis_client = _redis.from_url(_REDIS_URL) if _REDIS_URL else None
-except Exception:
-    _redis_client = None
 
 
 class GameStore:
-    """In-memory store with optional Redis persistence layer."""
+    """In-memory store for local games and socket ↔ player mappings."""
 
     def __init__(self):
-        # In-memory primary store — holds live Python objects.
         # Only *local* (non-table) games live here; table games are owned by
         # table_logic.table_manager and reached via table.game_state.
         self._games: Dict[str, object] = {}       # game_id -> GameState
 
-        # Socket tracking (never persisted — per-process only)
+        # Socket tracking
         self._sid_to_player: Dict[str, str] = {}  # socket sid -> player_id
         self._player_to_sid: Dict[str, str] = {}  # player_id -> socket sid
 
@@ -51,7 +39,6 @@ class GameStore:
 
     def add_game(self, game_state) -> None:
         self._games[game_state.game_id] = game_state
-        # TODO: persist to Redis via utils.serializers.game_state_to_dict
 
     def get_game(self, game_id: str) -> Optional[object]:
         return self._games.get(game_id)
@@ -101,7 +88,6 @@ class GameStore:
             "games": len(self._games),
             "tables": len(table_manager.tables),
             "connected_players": len(self._sid_to_player),
-            "redis": _redis_client is not None,
         }
 
 
