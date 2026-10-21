@@ -10,7 +10,7 @@ import os
 # Localhost dev origins are always permitted so `npm run dev` works with no
 # configuration. Production origins come from the ALLOWED_ORIGINS env var as a
 # comma-separated list, e.g.
-#   ALLOWED_ORIGINS=https://31.spoole.fyi,https://main.d123.amplifyapp.com
+#   ALLOWED_ORIGINS=https://31.spoole.dev,https://main.d123.amplifyapp.com
 _DEV_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 ALLOWED_ORIGINS = _DEV_ORIGINS + [

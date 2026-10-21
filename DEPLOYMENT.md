@@ -4,7 +4,7 @@
 
 | | URL |
 |---|---|
-| Frontend | https://31.spoole.fyi |
+| Frontend | https://31.spoole.dev |
 | Backend API | https://xspmedirzf.us-east-1.awsapprunner.com |
 
 ## Architecture
@@ -144,6 +144,33 @@ Note the `repositoryUri` from the output, e.g.:
 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend
 ```
 
+Then add a lifecycle policy so old images don't pile up (every backend push adds one):
+
+```bash
+aws ecr put-lifecycle-policy --repository-name card-game-31-backend --lifecycle-policy-text '{
+  "rules": [
+    {"rulePriority": 1, "description": "Never expire the image App Runner deploys",
+     "selection": {"tagStatus": "tagged", "tagPatternList": ["latest"], "countType": "imageCountMoreThan", "countNumber": 1},
+     "action": {"type": "expire"}},
+    {"rulePriority": 2, "description": "Keep manually tagged backups (e.g. pre-oct-2026)",
+     "selection": {"tagStatus": "tagged", "tagPatternList": ["pre-*"], "countType": "imageCountMoreThan", "countNumber": 5},
+     "action": {"type": "expire"}},
+    {"rulePriority": 3, "description": "Keep the 3 most recent commit-SHA images for rollback",
+     "selection": {"tagStatus": "tagged", "tagPatternList": ["*"], "countType": "imageCountMoreThan", "countNumber": 3},
+     "action": {"type": "expire"}},
+    {"rulePriority": 4, "description": "Expire orphaned untagged images after 1 day",
+     "selection": {"tagStatus": "untagged", "countType": "sinceImagePushed", "countUnit": "days", "countNumber": 1},
+     "action": {"type": "expire"}}
+  ]
+}'
+```
+
+> The CI build pushes `:latest` as an OCI image **index**; the amd64 image and
+> its build attestation are untagged children of it. Rule 4 does not touch
+> them — ECR won't expire an image while an index still references it — so it
+> only removes children orphaned when `:latest` moves. To keep a known-good
+> image indefinitely, tag it `pre-<something>`.
+
 ### Step 4 — Build and push the Docker image
 
 <a id="container-images"></a>
@@ -196,7 +223,7 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 
    | Key | Value |
    |---|---|
-   | `ALLOWED_ORIGINS` | `https://31.spoole.fyi` |
+   | `ALLOWED_ORIGINS` | `https://31.spoole.dev` |
    | `LOG_LEVEL` | `INFO` (optional; `DEBUG` logs per-turn game events) |
    | `CREATE_RATE_LIMIT`, `MAX_LIVE_GAMES`, `MAX_LIVE_TABLES` | optional; defaults 10/min per IP, 200, 100 (see `backend/.env.example`) |
 
@@ -255,6 +282,33 @@ Check an existing service with
    > in `amplify.yml`, so it must be re-applied if the app is ever recreated.
 
 6. Click **Save and deploy** (~2 min)
+
+### Step 6b — Custom domain (`31.spoole.dev`)
+
+The game is served at `31.spoole.dev`. `spoole.dev` is registered in Route 53
+in the same account, so Amplify creates its own DNS records and certificate:
+
+```bash
+aws amplify create-domain-association --app-id <APP_ID> \
+  --domain-name spoole.dev --sub-domain-settings prefix=31,branchName=main
+# Poll until domainStatus is AVAILABLE (~15–30 min while the cert issues)
+aws amplify get-domain-association --app-id <APP_ID> --domain-name spoole.dev \
+  --query domainAssociation.domainStatus
+```
+
+The old `31.spoole.fyi` domain stays attached to the app and permanently
+redirects to the new one. That redirect is a rewrite rule, and **it must come
+before the SPA rule** — Amplify applies the first match:
+
+| Source | Target | Type |
+|---|---|---|
+| `https://31.spoole.fyi` | `https://31.spoole.dev` | `301` |
+| `/<*>` | `/index.html` | `404-200` |
+
+> Domain sources must be the bare origin — Amplify appends the path itself.
+> A source like `https://31.spoole.fyi/<*>` is silently ignored.
+
+`ALLOWED_ORIGINS` on App Runner must include `https://31.spoole.dev` (Step 5).
 
 ### Step 7 — Smoke test
 
@@ -354,7 +408,9 @@ workflow**, and watch it build, push, and roll out.
 |---|---|---|
 | App Runner | 0.25 vCPU / 0.5 GB | **~$2.50 idle floor** + compute during requests |
 | Amplify Hosting | Free tier | $0 (first 1,000 build mins/mo free) |
-| ECR | First 500 MB free | ~$0 |
+| ECR | $0.10/GB-month | ~$0 (lifecycle policy keeps the repo small) |
+| Route 53 | Hosted zone per domain | $0.50 per domain (`spoole.dev`, `spoole.fyi`) |
+| Domain registration | Annual | $17/yr `spoole.dev`, $8/yr `spoole.fyi` |
 
 > ⚠️ **App Runner does _not_ scale to zero.** Even with no traffic it keeps the
 > instance's memory provisioned and bills for it at ~$0.007/GB-hr. At the minimum
@@ -381,6 +437,9 @@ workflow**, and watch it build, push, and roll out.
 - [ ] `VITE_API_URL` set in Amplify environment variables
 - [ ] Amplify redeploy triggered after setting env var (Vite inlines at build time)
 - [ ] Amplify rewrite rule `/<*>` → `/index.html` (200) added, or deep links 404
+- [ ] `31.spoole.dev` domain association AVAILABLE, and `31.spoole.fyi` 301s to it
+      (see [Step 6b](#step-6b--custom-domain-31spooledev))
+- [ ] ECR lifecycle policy applied (see Step 3)
 - [ ] App Runner auto scaling pinned to **max 1 instance** — in-memory state breaks otherwise
 - [ ] App Runner health check path set to `/api/health`
 - [ ] Backend health endpoint returns `{"version":"2.0.0",...}`
