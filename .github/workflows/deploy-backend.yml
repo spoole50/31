@@ -1,0 +1,102 @@
+name: Deploy backend
+
+# Builds the backend container and ships it to ECR, then tells App Runner to
+# roll out the new image. Runs on merge to main (backend changes only) and can
+# be triggered by hand from the Actions tab.
+#
+# Why this exists: App Runner runs linux/amd64. Building that on an Apple
+# Silicon Mac is a cross-compile people forget the --platform flag on; GitHub's
+# runners are amd64, so the build is native and correct by default — no local
+# Docker needed.
+#
+# Auth is OIDC: the job assumes an IAM role at runtime, so there are no
+# long-lived AWS keys stored in GitHub. See DEPLOYMENT.md for the one-time role
+# setup and the repository variables this reads.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false   # never interrupt a deploy mid-rollout
+
+permissions:
+  id-token: write             # required to request the OIDC token
+  contents: read
+
+jobs:
+  deploy:
+    name: Build, push, roll out
+    runs-on: ubuntu-latest
+    environment: production    # optional: add required reviewers in repo settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        # Required for the gha build cache below — the default docker driver
+        # can't export/import type=gha.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/amd64          # native on the runner, no emulation
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Roll out to App Runner
+        if: ${{ vars.APPRUNNER_SERVICE_ARN != '' }}
+        env:
+          SERVICE_ARN: ${{ vars.APPRUNNER_SERVICE_ARN }}
+        run: |
+          set -euo pipefail
+          echo "Starting deployment for $SERVICE_ARN"
+          op_id=$(aws apprunner start-deployment \
+            --service-arn "$SERVICE_ARN" \
+            --query OperationId --output text)
+          echo "Operation: $op_id"
+
+          # Poll until the rollout reaches a terminal state.
+          for i in $(seq 1 60); do   # up to ~15 min at 15s intervals
+            status=$(aws apprunner list-operations \
+              --service-arn "$SERVICE_ARN" \
+              --query "OperationSummaryList[?Id=='${op_id}'].Status | [0]" \
+              --output text)
+            echo "  [$i] status=$status"
+            case "$status" in
+              SUCCEEDED)
+                echo "Deployment succeeded." && exit 0 ;;
+              FAILED|ROLLBACK_IN_PROGRESS|ROLLBACK_SUCCEEDED|ROLLBACK_FAILED)
+                echo "Deployment did not succeed: $status" && exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "Timed out waiting for deployment to finish." && exit 1
+
+      - name: Note (no App Runner ARN configured)
+        if: ${{ vars.APPRUNNER_SERVICE_ARN == '' }}
+        run: |
+          echo "Image pushed to ECR. APPRUNNER_SERVICE_ARN is not set, so this"
+          echo "workflow did not trigger a rollout. Either set that repository"
+          echo "variable so CI drives deploys, or configure the App Runner"
+          echo "service's deployment trigger to Automatic so it pulls :latest."

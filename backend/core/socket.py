@@ -7,9 +7,11 @@ Using AsyncServer so all handlers can be async-native.
 
 import socketio
 
+from core.config import ALLOWED_ORIGINS
+
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins="*",
+    cors_allowed_origins=ALLOWED_ORIGINS,
     logger=False,
     engineio_logger=False,
     # Ping every 25s, disconnect after 60s of silence — much faster than the

@@ -55,6 +55,7 @@ export default function LocalSetup() {
               <input
                 className="input"
                 placeholder={`Player ${i + 1}`}
+                maxLength={32}
                 value={name}
                 onChange={(e) =>
                   setHumanNames((n) => n.map((v, idx) => (idx === i ? e.target.value : v)))
@@ -92,7 +93,9 @@ export default function LocalSetup() {
                 }
               >
                 {DIFFICULTIES.map((d) => (
-                  <option key={d} value={d} style={{ background: '#1a4731' }}>
+                  // Native <option> ignores most styling; a background is the
+                  // one property that reliably applies in the dropdown list.
+                  <option key={d} value={d} className="bg-felt">
                     {d.charAt(0).toUpperCase() + d.slice(1)}
                   </option>
                 ))}
@@ -116,17 +119,20 @@ export default function LocalSetup() {
         <label className="flex items-center justify-between cursor-pointer">
           <div>
             <p className="text-sm font-medium">Turn Timer</p>
-            <p className="text-xs text-white/40">45 seconds per turn</p>
+            <p className="text-xs text-white/55">45 seconds per turn</p>
           </div>
           <button
             type="button"
+            role="switch"
+            aria-checked={useTimer}
+            aria-label="Turn timer"
             onClick={() => setUseTimer((v) => !v)}
-            className="relative flex-shrink-0 w-11 h-6 rounded-full transition-colors"
-            style={{ background: useTimer ? '#f5c518' : 'rgba(255,255,255,0.2)' }}
+            className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors
+              ${useTimer ? 'bg-gold' : 'bg-white/20'}`}
           >
             <span
-              className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
-              style={{ left: useTimer ? '1.5rem' : '0.25rem' }}
+              className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-200
+                ${useTimer ? 'left-6' : 'left-1'}`}
             />
           </button>
         </label>
@@ -145,7 +151,7 @@ export default function LocalSetup() {
       </button>
 
       {totalPlayers < 2 && (
-        <p className="text-center text-white/40 text-sm mt-3">Need at least 2 players</p>
+        <p className="text-center text-white/55 text-sm mt-3">Need at least 2 players</p>
       )}
     </div>
   )

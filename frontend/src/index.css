@@ -2,34 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted Inter (variable), replacing the Google Fonts <link>.
+   Declared by hand rather than importing @fontsource-variable/inter wholesale:
+   that entrypoint ships seven subsets (~218 kB) and this UI is English-only.
+   One variable file covers weights 400–700, so there is nothing else to load. */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Every colour below is pulled from tailwind.config.js via theme() so the
+   config stays the single source of truth — no hex literal is repeated here. */
+
 @layer base {
   html { overscroll-behavior: none; }
   body {
-    background-color: #0f2d1e;
+    background-color: theme('colors.felt.dark');
     color: white;
-    font-family: Inter, system-ui, sans-serif;
+    font-family: theme('fontFamily.sans');
     -webkit-tap-highlight-color: transparent;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   * { box-sizing: border-box; }
+
+  /* Visible keyboard focus everywhere, suppressed for pointer input. */
+  :focus-visible {
+    outline: 2px solid theme('colors.gold.DEFAULT');
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
+  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+  /* The bg-white/5 + border-white/10 + rounded-2xl trio was repeated across
+     MainMenu, TableLobby, OnlineLobby and GameLog. */
+  .surface {
+    background: rgb(255 255 255 / 0.05);
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 1rem;
+  }
+  .surface-row {
+    background: rgb(255 255 255 / 0.05);
+    border-radius: 0.75rem;
+  }
+
+  /* ── Playing cards ─────────────────────────────────────────────────────── */
   .playing-card {
     position: relative;
-    background: #fafaf8;
-    border: 1px solid #d1d5db;
+    background: theme('colors.card.bg');
+    border: 1px solid theme('colors.card.border');
     border-radius: 0.5rem;
     cursor: pointer;
     user-select: none;
     aspect-ratio: 2.5 / 3.5;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    transition: all 0.2s ease-out;
+    box-shadow: theme('boxShadow.card');
+    transition: box-shadow 0.2s ease-out, transform 0.2s ease-out;
   }
-  .playing-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
-  .playing-card.selected { transform: translateY(-12px); box-shadow: 0 0 16px rgba(245,197,24,0.4); outline: 2px solid #f5c518; }
-  .playing-card.back { background: #1a4731; cursor: default; }
+  .playing-card:hover { transform: translateY(-4px); box-shadow: theme('boxShadow.card-hover'); }
+  .playing-card.selected {
+    transform: translateY(-12px);
+    box-shadow: theme('boxShadow.glow');
+    outline: 2px solid theme('colors.gold.DEFAULT');
+  }
+  .playing-card.back { background: theme('colors.felt.DEFAULT'); cursor: default; }
 
+  /* ── Buttons ───────────────────────────────────────────────────────────── */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -38,35 +81,46 @@
     font-weight: 600;
     border-radius: 0.75rem;
     padding: 0.75rem 1.25rem;
-    transition: all 0.15s;
+    transition: background-color 0.15s, transform 0.15s, opacity 0.15s;
     cursor: pointer;
     border: none;
+    /* Keep taps from being swallowed on small controls (WCAG target size). */
+    min-height: 2.75rem;
   }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn:active:not(:disabled) { transform: scale(0.95); }
-  .btn-primary { background: #f5c518; color: #1a4731; }
-  .btn-primary:hover:not(:disabled) { background: #fde68a; }
-  .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
-  .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
-  .btn-danger { background: #dc2626; color: white; }
-  .btn-danger:hover:not(:disabled) { background: #ef4444; }
-  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.875rem; border-radius: 0.5rem; }
+  .btn-primary { background: theme('colors.gold.DEFAULT'); color: theme('colors.felt.DEFAULT'); }
+  .btn-primary:hover:not(:disabled) { background: theme('colors.gold.light'); }
+  .btn-secondary {
+    background: rgb(255 255 255 / 0.1);
+    color: white;
+    border: 1px solid rgb(255 255 255 / 0.2);
+  }
+  .btn-secondary:hover:not(:disabled) { background: rgb(255 255 255 / 0.2); }
+  .btn-danger { background: theme('colors.red.600'); color: white; }
+  .btn-danger:hover:not(:disabled) { background: theme('colors.red.500'); }
+  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.875rem; border-radius: 0.5rem; min-height: 2rem; }
   .btn-lg { padding: 1rem 1.75rem; font-size: 1.125rem; border-radius: 1rem; }
 
+  /* ── Forms ─────────────────────────────────────────────────────────────── */
   .input {
     width: 100%;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgb(255 255 255 / 0.1);
+    border: 1px solid rgb(255 255 255 / 0.2);
     border-radius: 0.75rem;
     padding: 0.75rem 1rem;
     color: white;
     font-size: 1rem;
     outline: none;
-    transition: all 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .input::placeholder { color: rgba(255,255,255,0.4); }
-  .input:focus { border-color: rgba(245,197,24,0.6); box-shadow: 0 0 0 3px rgba(245,197,24,0.2); }
+  .input::placeholder { color: rgb(255 255 255 / 0.4); }
+  .input:focus {
+    border-color: theme('colors.gold.DEFAULT' / 60%);
+    box-shadow: 0 0 0 3px theme('colors.gold.DEFAULT' / 20%);
+  }
 
+  /* ── Bits ──────────────────────────────────────────────────────────────── */
   .badge {
     display: inline-flex;
     align-items: center;
@@ -76,8 +130,20 @@
     padding: 0.125rem 0.5rem;
     border-radius: 9999px;
   }
+  .badge-gold { background: theme('colors.gold.DEFAULT' / 20%); color: theme('colors.gold.light'); }
+  .badge-muted { background: rgb(255 255 255 / 0.1); color: rgb(255 255 255 / 0.6); }
+  .badge-knocked { background: theme('colors.orange.500' / 20%); color: theme('colors.orange.300'); }
 
   .life-dot { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 9999px; }
-  .life-dot.active { background: #ef4444; }
-  .life-dot.lost { background: rgba(255,255,255,0.2); }
+  .life-dot.active { background: theme('colors.red.500'); }
+  .life-dot.lost { background: rgb(255 255 255 / 0.2); }
+}
+
+/* Respect users who ask for less motion — Framer Motion reads this too. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -9,7 +9,6 @@ backend/
 ├── main.py               # FastAPI app + Socket.IO ASGI mount + cleanup task
 ├── game_logic.py         # Core rules: GameState, Player, Card, round logic
 ├── table_logic.py        # Multiplayer table / lobby management
-├── Procfile              # Heroku / App Runner entry point
 ├── Dockerfile
 ├── requirements.txt
 ├── core/
@@ -66,10 +65,14 @@ docker compose up --build
 | POST | `/api/tables/{id}/restart` | Restart finished game (host only) |
 | POST | `/api/tables/{id}/leave` | Leave table |
 | POST | `/api/tables/{id}/add-ai` | Add AI player (host only) |
-| GET | `/api/tables/{id}/game` | Get game state (player-scoped) |
-| POST | `/api/tables/{id}/game/{action}` | Perform game action |
 | GET | `/api/player/{id}/table` | Get player's current table |
 | GET | `/api/health` | Health check + stats |
+
+> No REST endpoint exposes game state or accepts game actions. The former pair
+> (`GET /tables/{id}/game`, `POST /tables/{id}/game/{action}`) were removed as
+> unauthenticated: the read leaked any player's hand and the write accepted
+> moves as any player. All gameplay is Socket.IO, which verifies the SID owns
+> the claimed player before mutating state.
 
 ### WebSocket Events (Socket.IO)
 

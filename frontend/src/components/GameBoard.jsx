@@ -3,128 +3,41 @@
  *
  * mode="local"  → reads/writes useGameStore local* slice (REST)
  * mode="online" → reads/writes useGameStore online* slice (WebSocket)
+ *
+ * Overlays (celebration, pass-and-play, game over) and the toast live in their
+ * own components; this file owns layout, action wiring, and derived turn state.
  */
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useGameStore from '../store/gameStore.js'
 import OpponentStrip from './OpponentStrip.jsx'
 import DiscardPile from './DiscardPile.jsx'
 import PlayerHand from './PlayerHand.jsx'
 import TurnTimer from './TurnTimer.jsx'
 import GameLog from './GameLog.jsx'
+import CelebrationOverlay from './CelebrationOverlay.jsx'
+import PassOverlay from './PassOverlay.jsx'
+import GameOverScreen from './GameOverScreen.jsx'
+import Toast from './Toast.jsx'
 
-// ── Celebration overlay (31 / instant win) ───────────────────────────────────
-const SUITS = ['♠', '♥', '♦', '♣']
-const SUIT_COLORS = { '♠': '#fff', '♥': '#ef4444', '♦': '#ef4444', '♣': '#fff' }
+const FULL_HAND = 4 // holding 4 cards means you have drawn and must discard
 
-function CelebrationOverlay({ message, onDone }) {
-  const pieces = Array.from({ length: 24 }, (_, i) => ({
-    id: i,
-    suit: SUITS[i % 4],
-    x: Math.random() * 100,
-    delay: Math.random() * 0.6,
-    rotate: Math.random() * 720 - 360,
-    scale: 0.8 + Math.random() * 1.2,
-  }))
-
-  useEffect(() => {
-    const t = setTimeout(onDone, 2800)
-    return () => clearTimeout(t)
-  }, [onDone])
-
-  return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden pointer-events-none"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      {/* Dark flash */}
-      <motion.div
-        className="absolute inset-0 bg-black/60"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0.7, 0.4] }}
-        transition={{ duration: 0.4 }}
-      />
-
-      {/* Falling suit symbols */}
-      {pieces.map((p) => (
-        <motion.span
-          key={p.id}
-          className="absolute text-2xl select-none"
-          style={{ left: `${p.x}%`, color: SUIT_COLORS[p.suit], top: '-5%', fontSize: `${p.scale * 1.5}rem` }}
-          initial={{ y: 0, opacity: 1, rotate: 0 }}
-          animate={{ y: '110vh', opacity: [1, 1, 0], rotate: p.rotate }}
-          transition={{ duration: 1.8 + Math.random() * 0.8, delay: p.delay, ease: 'easeIn' }}
-        >
-          {p.suit}
-        </motion.span>
-      ))}
-
-      {/* Message banner */}
-      <motion.div
-        className="relative z-10 text-center px-8 py-6 rounded-3xl bg-black/80 border-2 border-yellow-400 shadow-glow"
-        initial={{ scale: 0.3, opacity: 0 }}
-        animate={{ scale: [0.3, 1.15, 1], opacity: 1 }}
-        transition={{ duration: 0.5, type: 'spring', stiffness: 260, damping: 18 }}
-      >
-        <div className="text-6xl mb-2">🃏</div>
-        <p className="text-yellow-300 font-bold text-2xl">{message}</p>
-      </motion.div>
-    </motion.div>
-  )
-}
-
-// ── Pass-and-play handoff overlay ─────────────────────────────────────────────
-function PassOverlay({ playerName, onConfirm }) {
-  return (
-    <motion.div
-      className="fixed inset-0 z-40 flex flex-col items-center justify-center px-6 gap-8"
-      style={{ background: 'rgba(10,30,18,0.97)' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <motion.div
-        className="text-center"
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.15 }}
-      >
-        <div className="text-5xl mb-4">📱</div>
-        <h2 className="text-3xl font-bold mb-2">Pass the device</h2>
-        <p className="text-white/50 text-lg">
-          Hand it to <span className="text-white font-semibold">{playerName}</span>
-        </p>
-      </motion.div>
-
-      <motion.button
-        className="btn btn-primary btn-lg px-10"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        onClick={onConfirm}
-        whileTap={{ scale: 0.95 }}
-      >
-        I'm {playerName} — Show my hand
-      </motion.button>
-    </motion.div>
-  )
-}
-
-// ── Main component ─────────────────────────────────────────────────────────────
 export default function GameBoard({ mode, onExit }) {
+  const navigate = useNavigate()
   const store = useGameStore()
   const [showLog, setShowLog] = useState(false)
-  const [celebrating, setCelebrating] = useState(null)  // message string or null
+  const [celebrating, setCelebrating] = useState(null)
   const lastMessageRef = useRef(null)
 
   const isLocal = mode === 'local'
   const game = isLocal ? store.localGame : store.onlineGame
   const myPlayerId = isLocal ? store.localPlayerId : store.onlineGamePlayerId
 
-  // Watch for 31 / instant win messages
+  const { onlineError, clearOnlineError, notice, clearNotice } = store
+
+  // Watch for 31 / instant-win messages
   useEffect(() => {
     if (!game?.recent_message) return
     const msg = game.recent_message
@@ -135,105 +48,73 @@ export default function GameBoard({ mode, onExit }) {
     }
   }, [game?.recent_message])
 
+  const stopCelebrating = useCallback(() => setCelebrating(null), [])
+
+  const handlePlayAgain = useCallback(() => {
+    store.clearLocalGame()
+    navigate('/local/setup', { replace: true })
+  }, [store, navigate])
+
   if (!game) return null
 
   const me = game.players[myPlayerId]
   const isMyTurn = game.current_player_id === myPlayerId
-  const hasDrawn = me?.hand?.length === 4
-  const canDraw = isMyTurn && !hasDrawn && game.phase !== 'finished'
-  const canKnock = isMyTurn && !hasDrawn && me && !me.has_knocked && game.phase !== 'final_round' && game.phase !== 'finished'
+  const hasDrawn = me?.hand?.length === FULL_HAND
+  const isFinished = game.phase === 'finished'
+  const canDraw = isMyTurn && !hasDrawn && !isFinished
+  const canKnock =
+    isMyTurn && !hasDrawn && me && !me.has_knocked &&
+    game.phase !== 'final_round' && !isFinished
   const topDiscard = game.discard_pile?.[0] ?? null
 
   // ── Actions ─────────────────────────────────────────────────────────────────
-  const handleDrawDeck = () => {
-    if (isLocal) store.localDraw(false)
-    else store.sendGameAction('draw', { from_discard: false })
-  }
+  const act = (localFn, onlineAction, params) =>
+    isLocal ? localFn() : store.sendGameAction(onlineAction, params)
 
-  const handleDrawDiscard = () => {
-    if (isLocal) store.localDraw(true)
-    else store.sendGameAction('draw', { from_discard: true })
-  }
+  const handleDrawDeck = () => act(() => store.localDraw(false), 'draw', { from_discard: false })
+  const handleDrawDiscard = () => act(() => store.localDraw(true), 'draw', { from_discard: true })
+  const handleDiscard = (cardIndex) =>
+    act(() => store.localDiscard(cardIndex), 'discard', { card_index: cardIndex })
+  const handleKnock = () => act(() => store.localKnock(), 'knock')
 
-  const handleDiscard = (cardIndex) => {
-    if (isLocal) store.localDiscard(cardIndex)
-    else store.sendGameAction('discard', { card_index: cardIndex })
-  }
+  // ── Toast: socket errors take priority over informational notices ───────────
+  const toast = onlineError
+    ? { message: onlineError, tone: 'error', dismiss: clearOnlineError }
+    : notice
+      ? { message: notice, tone: 'info', dismiss: clearNotice }
+      : null
 
-  const handleKnock = () => {
-    if (isLocal) store.localKnock()
-    else store.sendGameAction('knock')
-  }
+  const toastNode = (
+    <AnimatePresence>
+      {toast && (
+        <Toast
+          key={toast.message}
+          message={toast.message}
+          tone={toast.tone}
+          onDismiss={toast.dismiss}
+        />
+      )}
+    </AnimatePresence>
+  )
 
-  // ── Pass-and-play handoff ───────────────────────────────────────────────────
-  const handoffPlayerId = isLocal ? store.localHandoffPlayerId : null
-  const handoffName = handoffPlayerId ? game.players[handoffPlayerId]?.name : null
-
-  // ── Game over ───────────────────────────────────────────────────────────────
-  if (game.phase === 'finished') {
-    const winner = game.winner_id ? game.players[game.winner_id] : null
-    const iWon = game.winner_id === myPlayerId
+  if (isFinished) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 gap-6">
-        <motion.div
-          className="text-center"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-        >
-          <div className="text-6xl mb-3">{iWon ? '🏆' : '💀'}</div>
-          <h2 className="text-3xl font-bold mb-2">
-            {iWon ? 'You Win!' : winner ? `${winner.name} Wins` : 'Game Over'}
-          </h2>
-          <p className="text-white/50">
-            {iWon ? 'Last player standing.' : 'Better luck next time.'}
-          </p>
-        </motion.div>
-
-        <div className="w-full max-w-sm space-y-2">
-          {Object.values(game.players)
-            .sort((a, b) => b.score - a.score)
-            .map((p, i) => (
-              <motion.div
-                key={p.id}
-                initial={{ x: -30, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: i * 0.08 }}
-                className={`flex items-center justify-between px-4 py-3 rounded-xl
-                  ${p.id === game.winner_id ? 'bg-yellow-500/20 border border-yellow-500/40' : 'bg-white/5'}`}
-              >
-                <span className="font-medium">{p.name}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-white/50 text-sm">{p.score} pts</span>
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: 3 }, (_, idx) => (
-                      <span key={idx} className={`life-dot ${idx < p.lives ? 'active' : 'lost'}`} />
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-        </div>
-
-        <div className="flex gap-3">
-          <button className="btn btn-secondary" onClick={onExit}>Menu</button>
-          {isLocal && (
-            <button
-              className="btn btn-primary"
-              onClick={() => { store.clearLocalGame(); window.location.href = '/local/setup' }}
-            >
-              Play Again
-            </button>
-          )}
-        </div>
-
-        <GameLog entries={game.game_log} />
-      </div>
+      <>
+        <GameOverScreen
+          game={game}
+          myPlayerId={myPlayerId}
+          isLocal={isLocal}
+          onExit={onExit}
+          onPlayAgain={handlePlayAgain}
+        />
+        {toastNode}
+      </>
     )
   }
 
   const activeName = game.players[game.current_player_id]?.name ?? '…'
-  const phase = game.phase
+  const handoffPlayerId = isLocal ? store.localHandoffPlayerId : null
+  const handoffName = handoffPlayerId ? game.players[handoffPlayerId]?.name : null
 
   return (
     <>
@@ -251,15 +132,23 @@ export default function GameBoard({ mode, onExit }) {
         <div className="flex items-center justify-between px-4">
           <div>
             <p className="text-white/50 text-xs uppercase tracking-wider">
-              Round {game.round_number} · {phase === 'final_round' ? '🔴 Final round' : 'Playing'}
+              Round {game.round_number} ·{' '}
+              {game.phase === 'final_round' ? '🔴 Final round' : 'Playing'}
             </p>
             <p className="font-semibold text-sm mt-0.5">
               {isMyTurn ? 'Your turn' : `${activeName}'s turn`}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {!isLocal && store.socketConnected && (
-              <span className="w-2 h-2 rounded-full bg-green-400" title="Connected" />
+            {!isLocal && (
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  store.socketConnected ? 'bg-green-400' : 'bg-red-500 animate-pulse'
+                }`}
+                title={store.socketConnected ? 'Connected' : 'Reconnecting…'}
+                role="status"
+                aria-label={store.socketConnected ? 'Connected' : 'Reconnecting'}
+              />
             )}
             <TurnTimer
               timeRemaining={game.turn_time_remaining ?? 45}
@@ -267,24 +156,30 @@ export default function GameBoard({ mode, onExit }) {
               show={!isLocal || store.localUseTimer}
               onExpire={isLocal ? store.localTimeoutTurn : undefined}
             />
-            <button className="btn btn-secondary btn-sm" onClick={onExit}>✕</button>
+            {/* btn-sm is 2rem tall — under the 44px WCAG target size, and this
+                is the one destructive control on the screen. */}
+            <button
+              className="btn btn-secondary w-11 h-11 p-0"
+              onClick={onExit}
+              aria-label="Leave game"
+              title="Leave game"
+            >
+              ✕
+            </button>
           </div>
         </div>
 
-        {/* Announcement banner */}
-        <AnimatePresence>
+        {/* Announcement banner.
+            The slot is always in the tree at a fixed height: mounting and
+            unmounting it pushed the table, hand and action row down and back
+            up every time the server sent a message. */}
+        <div className="mx-4 min-h-[2.25rem]" role="status" aria-live="polite">
           {game.recent_message && (
-            <motion.div
-              key={game.recent_message}
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mx-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-4 py-2 text-sm text-center text-yellow-200"
-            >
+            <div className="bg-gold/20 border border-gold/30 rounded-xl px-4 py-2 text-sm text-center text-gold-light">
               {game.recent_message}
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
 
         {/* Table */}
         <div className="flex-1 flex items-center justify-center py-4">
@@ -307,68 +202,63 @@ export default function GameBoard({ mode, onExit }) {
               isActivePlayer={isMyTurn}
               canInteract={isMyTurn}
               onDiscard={handleDiscard}
-              gamePhase={phase}
+              gamePhase={game.phase}
             />
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions.
+            Knock is always rendered, disabled when unavailable, so the row
+            keeps its shape — previously it appeared and vanished each turn and
+            shunted the log button sideways. Keeping it visible also shows the
+            action exists before it first becomes legal. */}
         <div className="flex gap-2 px-4">
-          <AnimatePresence>
-            {canKnock && (
-              <motion.button
-                className="btn btn-danger flex-1"
-                onClick={handleKnock}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                whileTap={{ scale: 0.93 }}
-              >
-                ✊ Knock
-              </motion.button>
-            )}
-          </AnimatePresence>
-          <button className="btn btn-secondary" onClick={() => setShowLog((v) => !v)}>
-            {showLog ? 'Hide log' : '📋 Log'}
+          <button
+            className="btn btn-danger flex-1"
+            onClick={handleKnock}
+            disabled={!canKnock}
+            title={canKnock ? 'End the round — everyone else gets one last turn' : 'You can only knock on your turn, before drawing'}
+          >
+            ✊ Knock
+          </button>
+          <button
+            className="btn btn-secondary w-24"
+            onClick={() => setShowLog((v) => !v)}
+            aria-expanded={showLog}
+          >
+            {showLog ? 'Hide' : '📋 Log'}
           </button>
         </div>
 
         {/* Game log */}
-        <AnimatePresence>
-          {showLog && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden px-4"
-            >
-              <GameLog entries={game.game_log} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {showLog && (
+          <div className="px-4">
+            <GameLog entries={game.game_log} />
+          </div>
+        )}
       </div>
 
-      {/* Pass-and-play handoff */}
       <AnimatePresence>
         {handoffName && (
           <PassOverlay
             key="handoff"
             playerName={handoffName}
-            onConfirm={() => store.confirmLocalHandoff()}
+            onConfirm={store.confirmLocalHandoff}
           />
         )}
       </AnimatePresence>
 
-      {/* 31 celebration */}
       <AnimatePresence>
         {celebrating && (
           <CelebrationOverlay
             key="celebration"
             message={celebrating}
-            onDone={() => setCelebrating(null)}
+            onDone={stopCelebrating}
           />
         )}
       </AnimatePresence>
+
+      {toastNode}
     </>
   )
 }

@@ -14,7 +14,8 @@ export default function OnlineLobby() {
 
   const handleCreate = async () => {
     clearOnlineError()
-    await createTable(tableName, maxPlayers, false)
+    // Private: joinable only with the invite code, never listed or joinable by id
+    await createTable(tableName, maxPlayers, true)
     navigate('/online/table')
   }
 
@@ -58,7 +59,7 @@ export default function OnlineLobby() {
         <div className="space-y-4">
           <div>
             <label className="text-sm text-white/60 mb-1 block">Table name</label>
-            <input className="input" value={tableName} onChange={(e) => setTableName(e.target.value)} />
+            <input className="input" maxLength={40} value={tableName} onChange={(e) => setTableName(e.target.value)} />
           </div>
           <div>
             <label className="text-sm text-white/60 mb-1 block">Max players: {maxPlayers}</label>
@@ -68,7 +69,7 @@ export default function OnlineLobby() {
               max={8}
               value={maxPlayers}
               onChange={(e) => setMaxPlayers(Number(e.target.value))}
-              className="w-full accent-yellow-400"
+              className="w-full accent-gold"
             />
           </div>
           {onlineError && <p className="text-red-400 text-sm">{onlineError}</p>}

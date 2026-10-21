@@ -23,9 +23,13 @@ export default function PlayerHand({
 
   const hand = player?.hand || []
 
-  // Detect when a card was just drawn (hand grew by 1) so we can pop-animate it
+  // Detect when a card was just drawn (hand grew by 1) so we can pop-animate it.
+  // Also drop any selection: the hand can shrink without us discarding it
+  // ourselves (a server-side turn timeout force-discards), and a stale index
+  // would leave a card looking pre-selected on a later turn.
   useEffect(() => {
     const prev = prevHandLengthRef.current
+    if (hand.length !== prev) setSelectedIndex(null)
     if (hand.length === prev + 1) {
       setNewCardIndex(hand.length - 1)
       const t = setTimeout(() => setNewCardIndex(null), 400)
@@ -58,13 +62,11 @@ export default function PlayerHand({
       {/* Player info bar */}
       <div className="flex items-center gap-3">
         <span className="font-semibold text-sm">{player.name}</span>
-        {player.is_ai && <span className="text-white/40 text-xs">AI</span>}
+        {player.is_ai && <span className="text-white/55 text-xs">AI</span>}
         <div className="flex gap-1">{liveDots}</div>
-        {player.has_knocked && (
-          <span className="badge bg-orange-500/20 text-orange-300 text-xs">Knocked</span>
-        )}
+        {player.has_knocked && <span className="badge badge-knocked">Knocked</span>}
         {isActivePlayer && (
-          <span className="badge bg-yellow-500/20 text-yellow-300 text-xs">
+          <span className="badge badge-gold">
             {gamePhase === 'final_round' ? 'Final turn' : 'Active'}
           </span>
         )}
@@ -102,7 +104,7 @@ export default function PlayerHand({
 
       {/* Score hint for current player */}
       {isCurrentPlayer && typeof player.score === 'number' && (
-        <span className="text-white/40 text-xs">Best hand: {player.score} pts</span>
+        <span className="text-white/55 text-xs">Best hand: {player.score} pts</span>
       )}
     </div>
   )

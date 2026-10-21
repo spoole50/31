@@ -26,10 +26,7 @@ export default function MainMenu() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
       {/* Title */}
       <header className="text-center mb-12">
-        <h1
-          className="text-8xl font-display font-bold mb-3"
-          style={{ color: '#f5c518', textShadow: '0 4px 24px rgba(245,197,24,0.3)' }}
-        >
+        <h1 className="text-8xl font-display font-bold mb-3 text-gold drop-shadow-[0_4px_24px_rgba(245,197,24,0.3)]">
           31
         </h1>
         <p className="text-white/60 text-lg">
@@ -40,7 +37,7 @@ export default function MainMenu() {
       {/* Mode cards */}
       <div className="w-full max-w-sm space-y-4">
         {/* Local */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="surface p-6">
           <div className="flex items-start gap-4 mb-5">
             <span className="text-3xl">♠</span>
             <div>
@@ -54,7 +51,7 @@ export default function MainMenu() {
         </div>
 
         {/* Online */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="surface p-6">
           <div className="flex items-start gap-4 mb-5">
             <span className="text-3xl">♣</span>
             <div>
@@ -68,6 +65,7 @@ export default function MainMenu() {
               <input
                 className="input"
                 placeholder="Your name"
+                maxLength={32}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleOnline()}
@@ -87,14 +85,14 @@ export default function MainMenu() {
 
       {/* Rules */}
       <button
-        className="mt-8 text-white/40 text-sm underline underline-offset-2 hover:text-white/70 transition-colors"
+        className="mt-8 text-white/55 text-sm underline underline-offset-2 hover:text-white/70 transition-colors"
         onClick={() => setShowRules(true)}
       >
         How to play
       </button>
 
       {/* Footer */}
-      <footer className="mt-10 text-white/25 text-xs flex items-center gap-2">
+      <footer className="mt-10 text-white/55 text-xs flex items-center gap-2">
         <a
           href="https://github.com/spoole50"
           target="_blank"

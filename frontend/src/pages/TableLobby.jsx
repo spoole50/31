@@ -5,14 +5,19 @@ import useGameStore from '../store/gameStore.js'
 export default function TableLobby() {
   const navigate = useNavigate()
   const {
-    playerId, playerName, table, onlineGame,
+    playerId, playerName, table, onlineGame, resuming, resumeTable,
     startOnlineGame, addAI, leaveTable, onlineLoading, onlineError,
   } = useGameStore()
 
+  // After a refresh, try to get back into the saved table before giving up
+  useEffect(() => {
+    if (!table) resumeTable()
+  }, [])
+
   // Guard: redirect if no table
   useEffect(() => {
-    if (!table) navigate('/online', { replace: true })
-  }, [table, navigate])
+    if (!table && !resuming) navigate('/online', { replace: true })
+  }, [table, resuming, navigate])
 
   // Transition to game when it starts
   useEffect(() => {
@@ -44,11 +49,11 @@ export default function TableLobby() {
 
       {/* Invite code */}
       {table.invite_code && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 text-center">
+        <div className="surface p-4 mb-6 text-center">
           <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Invite code</p>
-          <p className="text-3xl font-bold tracking-[0.3em] text-yellow-400">{table.invite_code}</p>
+          <p className="text-3xl font-bold tracking-[0.3em] text-gold">{table.invite_code}</p>
           <button
-            className="text-white/40 text-xs mt-2 hover:text-white/70"
+            className="text-white/55 text-xs mt-2 hover:text-white/70"
             onClick={() => navigator.clipboard?.writeText(table.invite_code)}
           >
             Copy
@@ -66,7 +71,7 @@ export default function TableLobby() {
             <span className="text-lg">{p.is_ai ? '🤖' : '👤'}</span>
             <span className="flex-1 font-medium">{p.name}</span>
             {p.is_host && (
-              <span className="badge bg-yellow-500/20 text-yellow-300">Host</span>
+              <span className="badge bg-gold/20 text-gold-light">Host</span>
             )}
             {p.id === playerId && (
               <span className="badge bg-white/10 text-white/60">You</span>
@@ -99,7 +104,7 @@ export default function TableLobby() {
             {onlineLoading ? 'Starting…' : 'Start Game'}
           </button>
           {!canStart && (
-            <p className="text-center text-white/40 text-sm">Need at least 2 players to start</p>
+            <p className="text-center text-white/55 text-sm">Need at least 2 players to start</p>
           )}
         </div>
       )}

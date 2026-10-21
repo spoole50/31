@@ -10,3 +10,12 @@ dist/
 build/
 .pytest_cache/
 .coverage
+
+# Test / dev-only material — not needed in the production image
+tests/
+scripts/
+pytest.ini
+requirements-dev.txt
+README.md
+.env.example
+.DS_Store

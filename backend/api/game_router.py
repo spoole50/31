@@ -5,12 +5,13 @@ These mirror the old Flask routes.py but are FastAPI routers.
 Local games don't use WebSockets — the frontend polls (or calls on demand).
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from typing import Annotated, List
 
 from game_logic import create_new_game, draw_card, discard_card, knock, AIDifficulty, GamePhase
 from ai.engine import advanced_ai_turn
+from core.limits import MAX_LIVE_GAMES, ensure_capacity, limit_creates
 from core.store import store
 from utils.serializers import game_state_to_dict
 
@@ -19,10 +20,13 @@ router = APIRouter()
 
 # ── Request models ────────────────────────────────────────────────────────────
 
+MAX_PLAYERS = 8  # 8 players × 3 cards + 1 discard still leaves a deck to draw from
+
+
 class CreateGameRequest(BaseModel):
-    player_names: List[str]
-    num_ai_players: int = 0
-    ai_difficulties: List[str] = []
+    player_names: List[Annotated[str, Field(max_length=32)]] = Field(max_length=MAX_PLAYERS)
+    num_ai_players: int = Field(0, ge=0, le=MAX_PLAYERS - 1)
+    ai_difficulties: List[str] = Field([], max_length=MAX_PLAYERS)
 
 
 class DrawRequest(BaseModel):
@@ -41,11 +45,17 @@ class KnockRequest(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/games")
+@router.post("/games", dependencies=[Depends(limit_creates)])
 def create_game(req: CreateGameRequest):
     """Create a new local game."""
     if not req.player_names:
         raise HTTPException(status_code=400, detail="At least one player name is required")
+
+    total = len(req.player_names) + req.num_ai_players
+    if not (2 <= total <= MAX_PLAYERS):
+        raise HTTPException(status_code=400, detail=f"A game needs 2 to {MAX_PLAYERS} players")
+
+    ensure_capacity(len(store.all_games()), MAX_LIVE_GAMES)
 
     difficulties = []
     for d in req.ai_difficulties:

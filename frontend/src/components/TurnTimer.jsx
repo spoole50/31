@@ -3,11 +3,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { timerColor } from '../lib/theme.js'
 
 const TOTAL = 45
 
 export default function TurnTimer({ timeRemaining, isMyTurn, show = true, onExpire }) {
-  if (!show) return null
   const [local, setLocal] = useState(timeRemaining)
   const expiredRef = useRef(false)
   const onExpireRef = useRef(onExpire)
@@ -35,11 +35,15 @@ export default function TurnTimer({ timeRemaining, isMyTurn, show = true, onExpi
     return () => clearInterval(id)
   }, [isMyTurn])
 
+  // Bail out *after* the hooks above — an early return before them would make
+  // the hook order depend on `show` and violate the rules of hooks.
+  if (!show) return null
+
   const pct = Math.max(0, local / TOTAL)
   const r = 20
   const circ = 2 * Math.PI * r
   const dash = circ * pct
-  const color = local <= 10 ? '#ef4444' : local <= 20 ? '#f97316' : '#f5c518'
+  const color = timerColor(local)
 
   return (
     <div className="relative inline-flex items-center justify-center" title={`${local}s remaining`}>

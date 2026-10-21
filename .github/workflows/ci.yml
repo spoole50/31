@@ -1,0 +1,81 @@
+name: CI
+
+# Validate every PR and every push to main. Nothing here touches AWS — it only
+# proves the code builds and the tests pass, so a green check is safe to deploy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"   # matches the production image
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - name: Install deps
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+      - name: Run pytest
+        working-directory: backend
+        run: python -m pytest
+
+  frontend:
+    name: Frontend build + render check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Build + jsdom render check
+        run: npm --workspace frontend run test
+
+  socket-smoke:
+    name: Socket.IO smoke (impersonation guard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install server + async client
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install "python-socketio[asyncio_client]" aiohttp
+      - name: Start backend
+        working-directory: backend
+        run: |
+          # nohup + disown so the server survives into the next step
+          nohup uvicorn main:app --port 8000 > /tmp/uvicorn.log 2>&1 &
+          echo $! > /tmp/uvicorn.pid
+          disown || true
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:8000/api/health >/dev/null && exit 0
+            sleep 0.5
+          done
+          echo "backend did not become healthy:" && cat /tmp/uvicorn.log && exit 1
+      - name: Run socket smoke test
+        working-directory: backend
+        run: python scripts/socket_smoke.py
+      - name: Backend log on failure
+        if: failure()
+        run: cat /tmp/uvicorn.log || true
+      - name: Stop backend
+        if: always()
+        run: kill "$(cat /tmp/uvicorn.pid)" 2>/dev/null || true

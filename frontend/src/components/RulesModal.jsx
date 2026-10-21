@@ -32,7 +32,7 @@ export default function RulesModal({ open, onClose }) {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">🎴 How to Play — 31</h2>
               <button
-                className="text-white/40 hover:text-white transition-colors text-2xl leading-none"
+                className="text-white/55 hover:text-white transition-colors text-2xl leading-none"
                 onClick={onClose}
               >
                 ×

@@ -49,7 +49,7 @@ Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://gi
 |---|---|
 | Frontend | React 18, Vite 5, Tailwind CSS 3, Zustand 4, Framer Motion 11, React Router v6 |
 | Realtime | socket.io-client 4, 10 s heartbeat, reconnect on drop |
-| Backend | Python 3.11, FastAPI 0.115, python-socketio 5, uvicorn, Gunicorn |
+| Backend | Python 3.11, FastAPI, python-socketio 5, uvicorn |
 | State | In-memory (single worker) · Redis stub ready for multi-worker scale-out |
 | Hosting | AWS Amplify (frontend) · AWS App Runner (backend) |
 | Container | Docker (linux/amd64), UvicornWorker |
@@ -60,33 +60,39 @@ Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://gi
 
 ### Prerequisites
 - Python 3.11+
-- Node.js 18+
+- Node.js 18+ — `.nvmrc` pins 24; with [fnm](https://github.com/Schniz/fnm) or
+  nvm installed, `cd` into the repo and the right version is selected for you
+- Docker is **not** required (see [DEPLOYMENT.md](DEPLOYMENT.md))
 
-### Backend
-
-```bash
-cd backend
-source ../.venv/bin/activate      # or: python -m venv ../.venv && source ../.venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-
-### Frontend
+### Setup (once)
 
 ```bash
-cd frontend
-npm install                        # first time only
-npm run dev                        # starts on http://localhost:3000
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt
+npm install
 ```
 
-The Vite dev server proxies `/api` and `/socket.io` to `http://localhost:8000` automatically.
+### Run
+
+```bash
+npm run dev        # uvicorn on :8000 + Vite on :3000, together
+```
+
+Or separately:
+
+```bash
+npm run dev:backend    # uvicorn main:app --reload --port 8000
+npm run dev:frontend   # vite on :3000
+```
+
+Vite proxies `/api` and `/socket.io` to `http://localhost:8000`, so no env var is
+needed locally. `http://localhost:3000` is always allowed by the backend's CORS
+allowlist.
 
 ### Stop servers
 
 ```bash
-# Frontend — Ctrl+C in that terminal
-
-# Backend — Ctrl+C, or kill by port:
+# Ctrl+C in the terminal, or kill the backend by port:
 lsof -ti :8000 | xargs kill
 ```
 
@@ -170,15 +176,21 @@ curl http://localhost:8000/api/health
 | Method | Path | Description |
 |---|---|---|
 | POST | `/api/tables` | Create a table |
-| GET | `/api/tables/public` | List public tables |
-| POST | `/api/tables/{id}/join` | Join by table ID |
-| POST | `/api/tables/join-by-code` | Join using invite code |
+| GET | `/api/tables` · `/api/tables/public` | List public tables |
+| GET | `/api/tables/{id}` | Get table info |
+| POST | `/api/tables/join` | Join by `invite_code` **or** `table_id` |
 | POST | `/api/tables/{id}/start` | Start game (host only) |
 | POST | `/api/tables/{id}/restart` | Restart a finished game (host only) |
 | POST | `/api/tables/{id}/leave` | Leave table |
 | POST | `/api/tables/{id}/add-ai` | Add AI player (host only) |
-| GET | `/api/tables/{id}/game` | Get per-player game state |
-| POST | `/api/tables/{id}/game/{action}` | REST fallback for draw/discard/knock/ai-turn |
+| GET | `/api/player/{id}/table` | Get a player's current table |
+
+> **There is deliberately no REST endpoint for reading game state or submitting
+> game actions.** Both used to exist and both were unauthenticated — the read
+> returned any player's hand to any caller, and the write accepted moves as any
+> player. Gameplay goes exclusively through Socket.IO, which verifies the socket
+> session owns the claimed player and emits per-player payloads with opponents'
+> hands hidden. Clients receive state on join and after every action.
 
 ### WebSocket Events (`/socket.io`)
 
@@ -203,22 +215,19 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full AWS guide.
 **Infrastructure:**
 - Frontend: AWS Amplify — auto-deploys on push to `main` (`npm run build → build/`)
 - Backend: AWS App Runner (`us-east-1`) — deploys from ECR on image push
-- Single Gunicorn worker with `UvicornWorker` (in-memory state; set `REDIS_URL` to enable multi-worker)
+- Single uvicorn process, App Runner pinned to one instance (state is in memory)
 
 ### Reducing cost
 
 App Runner does **not** scale to zero — it keeps 0.5 GB provisioned at all times and
-bills ~$2.50/month even with no traffic. Two ways to cut that:
-
-1. **Move the container to a scale-to-zero host** (least effort, ~$0/month at low traffic).
-   The existing `backend/Dockerfile` runs unchanged on **Google Cloud Run**
-   (`--min-instances=0 --max-instances=1`) or **Fly.io** (`auto_stop_machines`).
-   See [DEPLOYMENT.md](DEPLOYMENT.md#cost-estimate) for the full comparison.
-2. **Make local play client-side** (bigger change, removes the backend from the hot path).
-   Every local single-player action currently round-trips to `/api/games/*`, so even
-   offline-style play needs the paid server running. Porting `game_logic.py` +
-   `ai/engine.py` to JS would make local games run entirely in the browser (static,
-   free on Amplify) and leave the backend needed **only** for online multiplayer.
+bills ~$2.50/month even with no traffic. That is still the cheapest AWS option for this
+backend (App Runner is closed to new AWS customers but fully supported for this
+account; see [DEPLOYMENT.md](DEPLOYMENT.md#app-runner-status-checked-october-2026)).
+The way to shrink what the backend has to do is to **make local play client-side**
+(bigger change, removes the backend from the hot path). Every local single-player action currently round-trips to `/api/games/*`, so even
+offline-style play needs the paid server running. Porting `game_logic.py` +
+`ai/engine.py` to JS would make local games run entirely in the browser (static,
+free on Amplify) and leave the backend needed **only** for online multiplayer.
 
 ---
 

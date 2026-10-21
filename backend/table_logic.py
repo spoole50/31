@@ -5,6 +5,7 @@ This module handles table creation, player invitations, and lobby management
 for online multiplayer functionality.
 """
 
+import logging
 import uuid
 import random
 import string
@@ -13,7 +14,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime, timedelta
 
-from game_logic import GameState, Player, AIDifficulty, create_new_game, end_round
+from game_logic import GameState, AIDifficulty, create_new_game
+
+logger = logging.getLogger(__name__)
 
 
 class TableStatus(Enum):
@@ -130,12 +133,12 @@ class GameTable:
             # Check grace period for rejoining during their turn
             if not self.can_player_rejoin_during_turn(player_id):
                 time_remaining = self.game_state.get_turn_time_remaining() if self.game_state else 0
-                print(f"[REJOIN_BLOCKED] Player {player_name} blocked from rejoining - only {time_remaining}s remaining on their turn")
+                logger.info(f"[REJOIN_BLOCKED] Player {player_name} blocked from rejoining - only {time_remaining}s remaining on their turn")
                 return False
             
             # Update player activity for successful rejoin
             self.players[player_id].update_activity()
-            print(f"[REJOIN] Player {player_name} successfully rejoined table")
+            logger.info(f"[REJOIN] Player {player_name} successfully rejoined table")
             return True
         
         # New player joining
@@ -165,7 +168,7 @@ class GameTable:
             next_host.is_host = True
             # *** FIX: keep GameTable.host_id in sync ***
             self.host_id = next_host.id
-            print(f"[HOST_MIGRATION] New host: {next_host.name} ({next_host.id})")
+            logger.info(f"[HOST_MIGRATION] New host: {next_host.name} ({next_host.id})")
 
         # If no players left, mark table for cleanup
         if not self.players:
@@ -183,38 +186,6 @@ class GameTable:
     def is_host(self, player_id: str) -> bool:
         """Check whether player_id is the current host"""
         return player_id == self.host_id
-    
-    def check_for_disconnected_players(self, timeout_seconds: int = 45) -> List[str]:
-        """Check for players who have been inactive for too long"""
-        disconnected_players = []
-        current_time = datetime.now()
-        
-        # Use extended timeout (45s turn + 20s grace = 65s total) for actual disconnection
-        extended_timeout = timeout_seconds + 20
-        
-        for player_id, player in self.players.items():
-            # Don't disconnect AI players
-            if player.is_ai:
-                continue
-                
-            # Check if player has been inactive for too long
-            if player.last_activity:
-                time_since_activity = (current_time - player.last_activity).total_seconds()
-                if time_since_activity > extended_timeout:
-                    disconnected_players.append(player_id)
-        
-        return disconnected_players
-    
-    def remove_disconnected_players(self, timeout_seconds: int = 45) -> List[str]:
-        """Remove players who have been disconnected for too long"""
-        disconnected_players = self.check_for_disconnected_players(timeout_seconds)
-        removed_players = []
-        
-        for player_id in disconnected_players:
-            if self.remove_player(player_id):
-                removed_players.append(player_id)
-        
-        return removed_players
     
     def add_ai_player(self, difficulty: AIDifficulty = AIDifficulty.MEDIUM) -> bool:
         """Add an AI player to the table"""
@@ -295,7 +266,7 @@ class GameTable:
             
             return True
         except Exception as e:
-            print(f"Error starting game: {e}")  # Debug logging
+            logger.exception(f"Error starting game: {e}")
             return False
     
     def restart_game(self) -> bool:
@@ -316,11 +287,11 @@ class GameTable:
             self.game_state = None
             self.player_id_mapping = {}
             
-            print(f"Game restarted for table {self.table_id} with {len(self.players)} players")
+            logger.info(f"Game restarted for table {self.table_id} with {len(self.players)} players")
             return True
             
         except Exception as e:
-            print(f"Error restarting game: {e}")
+            logger.exception(f"Error restarting game: {e}")
             return False
 
     def to_dict(self) -> dict:
@@ -474,6 +445,27 @@ class TableManager:
     def get_table(self, table_id: str) -> Optional[GameTable]:
         """Get table by ID"""
         return self.tables.get(table_id)
+
+    def remove_table(self, table_id: str) -> bool:
+        """Delete a table outright and drop every player mapping pointing at it.
+
+        Used by the periodic cleanup sweep for abandoned tables. Unlike
+        leave_table this does not care about the table's status or who is
+        still nominally seated at it.
+        """
+        if table_id not in self.tables:
+            return False
+
+        stale_players = [
+            player_id
+            for player_id, tid in self.player_to_table.items()
+            if tid == table_id
+        ]
+        for player_id in stale_players:
+            del self.player_to_table[player_id]
+
+        del self.tables[table_id]
+        return True
     
     def list_public_tables(self) -> List[GameTable]:
         """List all public tables that can be joined"""
@@ -508,50 +500,6 @@ class TableManager:
         
         return table.restart_game()
 
-    def check_all_tables_for_disconnects(self, timeout_seconds: int = 45):
-        """Check all tables for disconnected players and turn timeouts"""
-        disconnected_log = []
-        
-        for table_id, table in list(self.tables.items()):
-            # Check for turn timeouts in active games
-            if table.game_state and table.status == TableStatus.PLAYING:
-                print(f"[BACKGROUND] Checking table {table_id} for timeouts...")
-                if table.game_state.handle_turn_timeout(timeout_seconds):
-                    print(f"[BACKGROUND] Turn timeout handled in table {table_id}")
-                    disconnected_log.append(f"Player turn timed out in table {table_id}")
-            
-            # Check for disconnected players
-            removed_players = table.remove_disconnected_players(timeout_seconds)
-            
-            for player_id in removed_players:
-                # Remove from player-to-table mapping
-                if player_id in self.player_to_table:
-                    del self.player_to_table[player_id]
-                
-                # Log the disconnect
-                player_name = table.players.get(player_id, {}).name if player_id in table.players else "Unknown"
-                disconnected_log.append(f"Player {player_name} ({player_id}) disconnected from table {table_id}")
-                
-                # If game is in progress, we might need to handle this in game logic too
-                if table.game_state and player_id in table.player_id_mapping:
-                    game_player_id = table.player_id_mapping[player_id]
-                    if game_player_id in table.game_state.players:
-                        # Mark player as eliminated in the game
-                        table.game_state.players[game_player_id].is_eliminated = True
-                        table.game_state.add_to_game_log(f"💀 {player_name} disconnected and was eliminated")
-                        
-                        # Check if game should end due to no human players remaining
-                        if table.game_state.is_game_over():
-                            # Use the proper end_round logic to finish the game correctly
-                            end_round(table.game_state, skip_life_loss=True)
-                            table.status = TableStatus.FINISHED
-            
-            # Clean up empty tables
-            if not table.players:
-                del self.tables[table_id]
-        
-        return disconnected_log
-    
     def cleanup_old_tables(self, max_age_hours: int = 24) -> int:
         """Clean up old finished tables. Returns the number of tables removed."""
         cutoff_time = datetime.now() - timedelta(hours=max_age_hours)

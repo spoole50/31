@@ -15,47 +15,91 @@
 | Backend | AWS App Runner | Runs the FastAPI + Socket.IO ASGI container from ECR |
 | Container registry | Amazon ECR | Stores Docker images |
 
+### App Runner status (checked October 2026)
+
+AWS [closed App Runner to new customers](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)
+on April 30, 2026. **Existing accounts, including this one, are unaffected**:
+services keep running and new ones can still be created. AWS will keep patching
+security and availability but adds no new features. The only practical risk is
+recreating the backend in a *new* AWS account, where App Runner won't be offered.
+
+AWS's suggested replacement is ECS Express Mode (Fargate + an Application Load
+Balancer). For one 0.25 vCPU container the load balancer alone costs more than
+this whole stack, so it is not worth moving to unless App Runner's support
+changes.
+
+Two App Runner limits shape how the backend runs:
+
+- **No WebSockets.** App Runner's proxy doesn't pass the WebSocket upgrade, so
+  Socket.IO stays on HTTP long-polling in production. The client starts on
+  polling (`frontend/src/lib/socket.js`), so this works; it is just chattier
+  than a real socket. Locally you do get WebSockets.
+- **Max one instance.** Game state is in process memory, and long-polling sends
+  every request separately. With two instances a player's requests would land
+  on different processes with different state. Pin the service with a
+  single-instance auto scaling configuration ([Step 5](#step-5--create-the-app-runner-service-backend)).
+
 ---
 
 ## Local Development
 
 ### Prerequisites
-- Python 3.11+, Node.js 18+, Docker Desktop
+- Python 3.11+
+- Node.js 18+ (`.nvmrc` pins 24 — with [fnm](https://github.com/Schniz/fnm) or
+  nvm installed, `cd` into the repo and it selects the right version)
 
-### Run with Docker (recommended — matches production)
+Docker is **not** required for development or deployment. See
+[Container images](#container-images) below.
 
-**Terminal 1 — Backend:**
-```bash
-docker compose up --build
-```
-
-**Terminal 2 — Frontend (hot-reload):**
-```bash
-cd frontend
-npm run dev     # Vite dev server on :3000, proxies /api and /socket.io to :8000
-```
-
-No env var needed locally — Vite's dev server proxy handles routing to `localhost:8000` automatically.
-
-**Verify backend is healthy:**
-```bash
-curl http://localhost:8000/api/health
-```
-
-### Run without Docker
+### Run it
 
 ```bash
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-
-# Frontend (separate terminal)
-cd frontend
+# One-time setup
+python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 npm install
+
+# Both servers, one command
 npm run dev
 ```
+
+That starts uvicorn on `:8000` with `--reload` and Vite on `:3000`. Vite proxies
+`/api` and `/socket.io` to the backend, so no env var is needed locally, and
+`http://localhost:3000` is allowed by CORS unconditionally.
+
+To run them separately:
+
+```bash
+npm run dev:backend     # uvicorn main:app --reload --port 8000
+npm run dev:frontend    # vite on :3000
+```
+
+**Verify the backend:**
+```bash
+curl http://localhost:8000/api/health
+# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0,"redis":false}
+```
+
+### Running the tests
+
+The same checks CI runs, locally:
+
+```bash
+# Backend API tests (in-process, no running server needed)
+.venv/bin/pip install -r backend/requirements-dev.txt
+cd backend && python -m pytest
+
+# Frontend: build the bundle, then execute it in jsdom to catch runtime faults
+npm --workspace frontend run test
+
+# Socket.IO path (needs the backend running — impersonation guard, hand hiding)
+pip install "python-socketio[asyncio_client]" aiohttp
+python backend/scripts/socket_smoke.py
+```
+
+The pytest suite asserts the security guarantees this project depends on: the
+two unauthenticated game endpoints stay deleted (404) and CORS is an allowlist,
+not `*`. `socket_smoke.py` covers what a TestClient can't — that a socket cannot
+act as a player it doesn't own.
 
 ---
 
@@ -102,27 +146,85 @@ Note the `repositoryUri` from the output, e.g.:
 
 ### Step 4 — Build and push the Docker image
 
+<a id="container-images"></a>
+
+App Runner runs **linux/amd64**. On an Apple Silicon Mac that means a cross-architecture
+build, which is the one thing local container tooling makes awkward — Apple's native
+`container` CLI is built around running native arm64 Linux VMs, so producing an amd64
+artifact with it is fighting the tool. So the build runs in CI, where the runner is
+already amd64 and nobody has to remember the `--platform` flag.
+
+> **This is automated.** [`.github/workflows/deploy-backend.yml`](.github/workflows/deploy-backend.yml)
+> builds and pushes the image, then rolls out App Runner, on every push to `main`
+> that touches `backend/**` (and via the Actions **Run workflow** button). It
+> authenticates with OIDC — no AWS keys are stored in GitHub. Configure it once
+> per [GitHub Actions setup](#github-actions-setup) below; after that you never
+> build the backend locally. The manual path below is only a fallback.
+
+<details>
+<summary>Manual build (requires Docker or colima locally)</summary>
+
 ```bash
 # Authenticate Docker to ECR (replace with your account ID)
 aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
 
-# Build (linux/amd64 — App Runner runs on x86_64)
+# --platform is mandatory on Apple Silicon; without it App Runner
+# silently fails to start an arm64 image.
 docker build --platform linux/amd64 -t card-game-31-backend ./backend
 docker tag card-game-31-backend:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:latest
 docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:latest
 ```
 
+</details>
+
 ### Step 5 — Create the App Runner service (Backend)
 
 1. **AWS Console → App Runner → Create service**
 2. Source: Container registry → Amazon ECR → select `card-game-31-backend:latest`
-3. Deployment trigger: **Automatic**
+3. Deployment trigger: **Manual** — the deploy workflow calls `StartDeployment`
+   explicitly so CI can report success/failure and wait for the rollout. (You
+   *can* leave it Automatic instead and clear the `APPRUNNER_SERVICE_ARN`
+   variable; App Runner then pulls `:latest` on its own, but the workflow won't
+   see the rollout status.)
 4. Service settings:
    - Port: `8000`
    - CPU: 0.25 vCPU / Memory: 0.5 GB
-5. Click **Create & deploy** (~3 min)
-6. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
+   - Health check: HTTP, path `/api/health`
+   - Auto scaling: a custom configuration with **min 1 / max 1** (see below)
+5. **Environment variables:**
+
+   | Key | Value |
+   |---|---|
+   | `ALLOWED_ORIGINS` | `https://31.spoole.fyi` |
+   | `LOG_LEVEL` | `INFO` (optional; `DEBUG` logs per-turn game events) |
+   | `CREATE_RATE_LIMIT`, `MAX_LIVE_GAMES`, `MAX_LIVE_TABLES` | optional; defaults 10/min per IP, 200, 100 (see `backend/.env.example`) |
+
+   > **Required.** CORS is an allowlist, not `*`. Without this the deployed
+   > frontend is blocked by the browser and both REST and Socket.IO fail.
+   > Comma-separate multiple origins (e.g. to include an Amplify preview URL).
+   > `http://localhost:3000` is always permitted and need not be listed.
+
+6. Click **Create & deploy** (~3 min)
+7. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
+
+**Pinning to one instance.** App Runner's default auto scaling configuration
+allows up to 25 instances, which would split game state (see
+[App Runner status](#app-runner-status-checked-october-2026)). Create a
+single-instance configuration once and attach it:
+
+```bash
+cfg_arn=$(aws apprunner create-auto-scaling-configuration \
+  --auto-scaling-configuration-name card-game-single \
+  --min-size 1 --max-size 1 --max-concurrency 100 \
+  --query AutoScalingConfiguration.AutoScalingConfigurationArn --output text)
+
+aws apprunner update-service --service-arn "$APPRUNNER_SERVICE_ARN" \
+  --auto-scaling-configuration-arn "$cfg_arn"
+```
+
+Check an existing service with
+`aws apprunner describe-service --service-arn "$APPRUNNER_SERVICE_ARN" --query Service.AutoScalingConfigurationSummary`.
 
 ### Step 6 — Deploy the frontend on Amplify
 
@@ -140,7 +242,19 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
    > ⚠️ Vite inlines env vars at **build time**. After setting or changing `VITE_API_URL`
    > you must trigger a new Amplify build (push a commit or click **Redeploy this version**).
 
-5. Click **Save and deploy** (~2 min)
+5. **App settings → Rewrites and redirects → Add rule:**
+
+   | Source | Target | Type |
+   |---|---|---|
+   | `/<*>` | `/index.html` | `200 (Rewrite)` |
+
+   > Without this, deep links return **HTTP 404**. Amplify still serves
+   > `index.html` as its 404 body, so React boots and the app *appears* to work —
+   > but every refresh mid-game, and every shared link, responds 404 to browsers,
+   > caches and crawlers. This is console-only configuration; it is not captured
+   > in `amplify.yml`, so it must be re-applied if the app is ever recreated.
+
+6. Click **Save and deploy** (~2 min)
 
 ### Step 7 — Smoke test
 
@@ -153,12 +267,84 @@ Open your Amplify URL and start a local game to confirm end-to-end connectivity.
 
 ---
 
+## GitHub Actions setup
+
+Two workflows live in [`.github/workflows/`](.github/workflows/):
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | every PR + push to `main` | Backend pytest, frontend build + jsdom render check, Socket.IO impersonation smoke test. Touches no cloud. |
+| `deploy-backend.yml` | push to `main` under `backend/**`, or manual | Builds the amd64 image, pushes to ECR, rolls out App Runner. |
+
+CI needs no configuration. The deploy workflow needs a one-time IAM setup so it
+can talk to AWS **without any stored keys** (GitHub OIDC).
+
+### 1. Create the OIDC identity provider (once per AWS account)
+
+If you have never wired GitHub to this account before:
+
+```bash
+aws iam create-open-id-connect-provider \
+  --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com
+```
+
+### 2. Create the deploy role
+
+Trust policy — save as `trust.json`, replacing the repo if you forked it:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::289213110445:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+      "StringLike": { "token.actions.githubusercontent.com:sub": "repo:spoole50/31:*" }
+    }
+  }]
+}
+```
+
+```bash
+aws iam create-role --role-name card-game-deploy \
+  --assume-role-policy-document file://trust.json
+
+# ECR push + App Runner rollout. Scope tighter if you prefer.
+aws iam attach-role-policy --role-name card-game-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+aws iam attach-role-policy --role-name card-game-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AWSAppRunnerFullAccess
+```
+
+The `sub` condition scopes the role to this repository, so only workflows in
+`spoole50/31` can assume it.
+
+### 3. Set repository variables
+
+**GitHub → repo → Settings → Secrets and variables → Actions → Variables tab.**
+These are *variables*, not secrets — none of them is sensitive:
+
+| Variable | Value |
+|---|---|
+| `AWS_REGION` | `us-east-1` |
+| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::289213110445:role/card-game-deploy` |
+| `ECR_REPOSITORY` | `card-game-31-backend` |
+| `APPRUNNER_SERVICE_ARN` | your service ARN (leave unset to skip the rollout step) |
+
+Push a backend change to `main`, or hit **Actions → Deploy backend → Run
+workflow**, and watch it build, push, and roll out.
+
+---
+
 ## Ongoing Deployments
 
 | What changed | What to do |
 |---|---|
-| Frontend (JS/CSS) | `git push` → Amplify rebuilds automatically |
-| Backend (Python) | Re-run the `docker build / tag / push` commands from Step 4 → App Runner redeploys automatically |
+| Frontend (JS/CSS) | `git push` to `main` → Amplify rebuilds automatically |
+| Backend (Python) | `git push` to `main` (any `backend/**` change) → `deploy-backend.yml` builds, pushes, and rolls out. No local Docker. |
 
 ---
 
@@ -176,28 +362,41 @@ Open your Amplify URL and start a local game to confirm end-to-end connectivity.
 > the standing charge you see. Active vCPU/memory is billed on top only while
 > requests are being served.
 >
-> **To cut the idle cost to ~$0**, move the container to a platform that scales to
-> true zero:
-> - **Google Cloud Run** — same Docker image, `--min-instances=0`, `--max-instances=1`
->   (keeps the single-worker in-memory model), high concurrency. At this traffic it
->   stays inside the always-free tier → ~$0/month. Supports WebSockets (60-min cap).
-> - **Fly.io** — `auto_stop_machines` + `min_machines_running=0`; a stopped machine
->   bills ~$0 for compute. Native WebSocket support.
->
-> Frontend stays on Amplify (or Cloudflare Pages / GitHub Pages), all $0. See
+> This is still the cheapest way to run the backend on AWS. ECS Express Mode,
+> AWS's recommended App Runner replacement, adds an Application Load Balancer
+> (~$16/month on its own before Fargate and public IPv4 charges). See
 > "Reducing cost" in the root README for the architectural option (client-side
-> local play) that removes the backend from the critical path entirely.
+> local play) that takes the backend off the critical path for single-player.
 
 ---
 
 ## Production Checklist
 
+- [ ] GitHub Actions variables set (`AWS_REGION`, `AWS_DEPLOY_ROLE_ARN`,
+      `ECR_REPOSITORY`, `APPRUNNER_SERVICE_ARN`) — see
+      [GitHub Actions setup](#github-actions-setup)
+- [ ] CI green on the branch (pytest, frontend render check, socket smoke)
+- [ ] `ALLOWED_ORIGINS` set on App Runner to the frontend origin — **required**;
+      CORS is an allowlist, so the site is broken without it
 - [ ] `VITE_API_URL` set in Amplify environment variables
 - [ ] Amplify redeploy triggered after setting env var (Vite inlines at build time)
+- [ ] Amplify rewrite rule `/<*>` → `/index.html` (200) added, or deep links 404
+- [ ] App Runner auto scaling pinned to **max 1 instance** — in-memory state breaks otherwise
+- [ ] App Runner health check path set to `/api/health`
 - [ ] Backend health endpoint returns `{"version":"2.0.0",...}`
-- [ ] WebSocket connects — browser Network tab shows `101 Switching Protocols` on `/socket.io/`
+- [ ] Socket.IO connects — browser Network tab shows `/socket.io/?EIO=4&transport=polling`
+      requests returning 200 (App Runner has no WebSockets, so no `101` upgrade in prod)
 - [ ] CORS working — no blocked requests in browser console
 - [ ] Online game: create table, add AI, start game, play a full round
-- [ ] Consider adding Redis (`REDIS_URL` env var on App Runner) for state persistence across redeploys
-- [ ] Add rate limiting to API routes
-- [ ] Set up CloudWatch alerts on App Runner for error spikes
+
+### Known gaps
+
+- [ ] **Player ids are bearer credentials.** `join_table` re-attaches any socket
+      that names a seated `player_id`, and the table payload lists every
+      player's id, so another player at the table could take over a seat.
+      Fixing it needs a per-player secret issued on create/join.
+- [ ] A refresh *on your own turn* still skips that turn (the disconnect
+      handler skips immediately so the table doesn't stall).
+- [ ] Redis (`REDIS_URL`) for state persistence across redeploys — the store
+      interface exists but no mutation is actually persisted yet.
+- [ ] CloudWatch alerts on App Runner for error spikes
