@@ -19,4 +19,3 @@ requirements-dev.txt
 README.md
 .env.example
 .DS_Store
-.renderignore

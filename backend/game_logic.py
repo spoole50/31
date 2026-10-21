@@ -1,9 +1,12 @@
+import logging
 import random
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 # Card values and suits
 CARD_VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
@@ -87,10 +90,10 @@ class Player:
         """Player loses a life"""
         old_lives = self.lives
         self.lives -= 1
-        print(f"[LIFE_LOSS] {self.name}: {old_lives} -> {self.lives} lives")  # Debug logging
+        logger.debug(f"[LIFE_LOSS] {self.name}: {old_lives} -> {self.lives} lives")
         if self.lives <= 0:
             self.is_eliminated = True
-            print(f"[ELIMINATION] {self.name} has been eliminated!")  # Debug logging
+            logger.info(f"[ELIMINATION] {self.name} has been eliminated!")
 
 @dataclass
 class GameState:
@@ -164,22 +167,22 @@ class GameState:
 
     def handle_turn_timeout(self, timeout_seconds: int = 45) -> bool:
         """Handle a player's turn timeout by forcing an action"""
-        print(f"[TIMEOUT CHECK] Checking timeout for player {self.current_player_id}, remaining time: {self.get_turn_time_remaining(timeout_seconds)}")
+        logger.debug(f"[TIMEOUT CHECK] Checking timeout for player {self.current_player_id}, remaining time: {self.get_turn_time_remaining(timeout_seconds)}")
         
         if not self.check_turn_timeout(timeout_seconds):
             return False
         
         current_player = self.players.get(self.current_player_id)
         if not current_player:
-            print(f"[TIMEOUT] No current player found: {self.current_player_id}")
+            logger.debug(f"[TIMEOUT] No current player found: {self.current_player_id}")
             return False
         
         # Don't timeout AI players - they should handle their own turns
         if current_player.is_ai:
-            print(f"[TIMEOUT] Skipping timeout for AI player: {current_player.name}")
+            logger.debug(f"[TIMEOUT] Skipping timeout for AI player: {current_player.name}")
             return False
         
-        print(f"[TIMEOUT] Processing timeout for human player: {current_player.name}")
+        logger.debug(f"[TIMEOUT] Processing timeout for human player: {current_player.name}")
         self.add_to_game_log(f"⏰ {current_player.name}'s turn timed out!")
         
         # Force the player to draw from deck if they haven't drawn yet
@@ -415,14 +418,14 @@ def discard_card(game_state: GameState, player_id: str, card_index: int) -> bool
         score, _ = player.calculate_best_score()
         if score == 31:
             score, suit = player.calculate_best_score()
-            print(f"[INSTANT_WIN] {player.name} got 31 points! Everyone else loses a life")  # Debug logging
+            logger.info(f"[INSTANT_WIN] {player.name} got 31 points! Everyone else loses a life")
             game_state.log_instant_win(player.name, score)
             # Set message for instant win
             game_state.recent_message = f"{player.name} got 31 points! Instant win!"
             # Everyone else loses a life
             for other_player in game_state.players.values():
                 if other_player.id != player_id:
-                    print(f"[INSTANT_WIN_LOSS] {other_player.name} loses a life due to instant win")  # Debug logging
+                    logger.debug(f"[INSTANT_WIN_LOSS] {other_player.name} loses a life due to instant win")
                     other_player.lose_life()
             end_round(game_state, skip_life_loss=True)  # Skip additional life loss
             return True
@@ -503,18 +506,18 @@ def end_round(game_state: GameState, skip_life_loss: bool = False) -> None:
         min_score = min(player_scores.values())
         losers = [pid for pid, score in player_scores.items() if score == min_score]
         
-        print(f"[ROUND_END] Min score: {min_score}, Losers: {[game_state.players[pid].name for pid in losers]}")  # Debug logging
+        logger.debug(f"[ROUND_END] Min score: {min_score}, Losers: {[game_state.players[pid].name for pid in losers]}")
         
         # Players with lowest score lose a life
         for player_id in losers:
             player = game_state.players[player_id]
-            print(f"[LIFE_LOSS] {player.name} loses a life (score: {player_scores[player_id]})")  # Debug logging
+            logger.debug(f"[LIFE_LOSS] {player.name} loses a life (score: {player_scores[player_id]})")
             player.lose_life()
             # lose_life() already sets is_eliminated when lives reach 0
             if player.is_eliminated:
                 game_state.log_player_elimination(player.name)
     else:
-        print(f"[ROUND_END] Skipping life loss (instant win scenario)")  # Debug logging
+        logger.debug(f"[ROUND_END] Skipping life loss (instant win scenario)")
     
     # Check if game is over
     active_players = game_state.get_active_players()

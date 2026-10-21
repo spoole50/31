@@ -15,6 +15,30 @@
 | Backend | AWS App Runner | Runs the FastAPI + Socket.IO ASGI container from ECR |
 | Container registry | Amazon ECR | Stores Docker images |
 
+### App Runner status (checked October 2026)
+
+AWS [closed App Runner to new customers](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)
+on April 30, 2026. **Existing accounts, including this one, are unaffected**:
+services keep running and new ones can still be created. AWS will keep patching
+security and availability but adds no new features. The only practical risk is
+recreating the backend in a *new* AWS account, where App Runner won't be offered.
+
+AWS's suggested replacement is ECS Express Mode (Fargate + an Application Load
+Balancer). For one 0.25 vCPU container the load balancer alone costs more than
+this whole stack, so it is not worth moving to unless App Runner's support
+changes.
+
+Two App Runner limits shape how the backend runs:
+
+- **No WebSockets.** App Runner's proxy doesn't pass the WebSocket upgrade, so
+  Socket.IO stays on HTTP long-polling in production. The client starts on
+  polling (`frontend/src/lib/socket.js`), so this works; it is just chattier
+  than a real socket. Locally you do get WebSockets.
+- **Max one instance.** Game state is in process memory, and long-polling sends
+  every request separately. With two instances a player's requests would land
+  on different processes with different state. Pin the service with a
+  single-instance auto scaling configuration ([Step 5](#step-5--create-the-app-runner-service-backend)).
+
 ---
 
 ## Local Development
@@ -166,11 +190,14 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 4. Service settings:
    - Port: `8000`
    - CPU: 0.25 vCPU / Memory: 0.5 GB
+   - Health check: HTTP, path `/api/health`
+   - Auto scaling: a custom configuration with **min 1 / max 1** (see below)
 5. **Environment variables:**
 
    | Key | Value |
    |---|---|
    | `ALLOWED_ORIGINS` | `https://31.spoole.fyi` |
+   | `LOG_LEVEL` | `INFO` (optional; `DEBUG` logs per-turn game events) |
 
    > **Required.** CORS is an allowlist, not `*`. Without this the deployed
    > frontend is blocked by the browser and both REST and Socket.IO fail.
@@ -179,6 +206,24 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
 
 6. Click **Create & deploy** (~3 min)
 7. Copy the service URL: `https://xxxxxxxx.us-east-1.awsapprunner.com`
+
+**Pinning to one instance.** App Runner's default auto scaling configuration
+allows up to 25 instances, which would split game state (see
+[App Runner status](#app-runner-status-checked-october-2026)). Create a
+single-instance configuration once and attach it:
+
+```bash
+cfg_arn=$(aws apprunner create-auto-scaling-configuration \
+  --auto-scaling-configuration-name card-game-single \
+  --min-size 1 --max-size 1 --max-concurrency 100 \
+  --query AutoScalingConfiguration.AutoScalingConfigurationArn --output text)
+
+aws apprunner update-service --service-arn "$APPRUNNER_SERVICE_ARN" \
+  --auto-scaling-configuration-arn "$cfg_arn"
+```
+
+Check an existing service with
+`aws apprunner describe-service --service-arn "$APPRUNNER_SERVICE_ARN" --query Service.AutoScalingConfigurationSummary`.
 
 ### Step 6 — Deploy the frontend on Amplify
 
@@ -316,17 +361,11 @@ workflow**, and watch it build, push, and roll out.
 > the standing charge you see. Active vCPU/memory is billed on top only while
 > requests are being served.
 >
-> **To cut the idle cost to ~$0**, move the container to a platform that scales to
-> true zero:
-> - **Google Cloud Run** — same Docker image, `--min-instances=0`, `--max-instances=1`
->   (keeps the single-worker in-memory model), high concurrency. At this traffic it
->   stays inside the always-free tier → ~$0/month. Supports WebSockets (60-min cap).
-> - **Fly.io** — `auto_stop_machines` + `min_machines_running=0`; a stopped machine
->   bills ~$0 for compute. Native WebSocket support.
->
-> Frontend stays on Amplify (or Cloudflare Pages / GitHub Pages), all $0. See
+> This is still the cheapest way to run the backend on AWS. ECS Express Mode,
+> AWS's recommended App Runner replacement, adds an Application Load Balancer
+> (~$16/month on its own before Fargate and public IPv4 charges). See
 > "Reducing cost" in the root README for the architectural option (client-side
-> local play) that removes the backend from the critical path entirely.
+> local play) that takes the backend off the critical path for single-player.
 
 ---
 
@@ -341,8 +380,11 @@ workflow**, and watch it build, push, and roll out.
 - [ ] `VITE_API_URL` set in Amplify environment variables
 - [ ] Amplify redeploy triggered after setting env var (Vite inlines at build time)
 - [ ] Amplify rewrite rule `/<*>` → `/index.html` (200) added, or deep links 404
+- [ ] App Runner auto scaling pinned to **max 1 instance** — in-memory state breaks otherwise
+- [ ] App Runner health check path set to `/api/health`
 - [ ] Backend health endpoint returns `{"version":"2.0.0",...}`
-- [ ] WebSocket connects — browser Network tab shows `101 Switching Protocols` on `/socket.io/`
+- [ ] Socket.IO connects — browser Network tab shows `/socket.io/?EIO=4&transport=polling`
+      requests returning 200 (App Runner has no WebSockets, so no `101` upgrade in prod)
 - [ ] CORS working — no blocked requests in browser console
 - [ ] Online game: create table, add AI, start game, play a full round
 

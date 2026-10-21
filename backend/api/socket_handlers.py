@@ -25,6 +25,7 @@ Key improvements over v1 polling:
   * AI turns are executed server-side and broadcast immediately after a human move
 """
 
+import logging
 import asyncio
 
 from core.socket import sio
@@ -33,6 +34,8 @@ from table_logic import table_manager, TableStatus
 from game_logic import draw_card, discard_card, knock, GamePhase
 from ai.engine import advanced_ai_turn
 from utils.serializers import game_state_to_dict, table_to_dict
+
+logger = logging.getLogger(__name__)
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -69,7 +72,7 @@ async def _emit_game_to_table(table, game=None) -> None:
 
 @sio.on("connect")
 async def on_connect(sid, environ):
-    print(f"[WS] connect  sid={sid}")
+    logger.debug(f"[WS] connect  sid={sid}")
 
 
 @sio.on("disconnect")
@@ -84,7 +87,7 @@ async def on_disconnect(sid):
     if not player_id:
         return
 
-    print(f"[WS] disconnect  player={player_id}")
+    logger.info(f"[WS] disconnect  player={player_id}")
     table = table_manager.get_player_table(player_id)
     if not table:
         return
@@ -138,14 +141,14 @@ async def _delayed_disconnect_cleanup(
 
     # If a new socket registered in the meantime, the player reconnected
     if store.get_sid_for_player(player_id):
-        print(f"[GRACE] {player_name} reconnected within {DISCONNECT_GRACE_SECONDS}s")
+        logger.info(f"[GRACE] {player_name} reconnected within {DISCONNECT_GRACE_SECONDS}s")
         return
 
     table = table_manager.get_table(table_id)
     if not table:
         return  # table already cleaned up
 
-    print(f"[GRACE_EXPIRED] {player_name} did not reconnect — eliminating")
+    logger.info(f"[GRACE_EXPIRED] {player_name} did not reconnect — eliminating")
 
     # ── Eliminate from game ───────────────────────────────────────────────────
     if table.game_state and table.status == TableStatus.PLAYING:
@@ -179,7 +182,7 @@ async def _delayed_disconnect_cleanup(
         new_host = updated_table.get_host()
         if new_host:
             new_host_id = new_host.id
-            print(f"[HOST_MIGRATION] {player_name} removed → new host: {new_host.name}")
+            logger.info(f"[HOST_MIGRATION] {player_name} removed → new host: {new_host.name}")
 
     await sio.emit(
         "player_disconnected",
@@ -220,7 +223,7 @@ async def on_join_table(sid, data):
     store.register_sid(sid, player_id)
     await sio.enter_room(sid, table_id)
 
-    print(f"[WS] join_table  player={player_name}  table={table_id}")
+    logger.info(f"[WS] join_table  player={player_name}  table={table_id}")
 
     # Update activity so inactivity-based checks don't kick them immediately
     table.update_player_activity(player_id)

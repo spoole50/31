@@ -13,11 +13,14 @@ Architecture:
 
 Entry points:
   Local:       uvicorn main:app --reload --port 8000
-  Production:  gunicorn main:app -w 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-  (Single worker because in-memory state is per-process. Add Redis to scale out.)
+  Production:  uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers
+  (Single process because in-memory state is per-process. App Runner must be
+   pinned to max 1 instance for the same reason.)
 """
 
 import asyncio
+import logging
+import os
 import socketio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -30,6 +33,14 @@ from api.game_router import router as game_router
 from api.table_router import router as table_router
 from table_logic import table_manager
 import api.socket_handlers  # noqa: F401  — registers all @sio.on handlers
+
+# LOG_LEVEL=DEBUG surfaces per-turn game events (timeouts, life loss, round
+# results). App Runner ships stdout to CloudWatch Logs as-is.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 # ── Background cleanup task ───────────────────────────────────────────────────
@@ -58,12 +69,12 @@ async def _periodic_cleanup():
             for gid in stale_game_ids:
                 store.remove_game(gid)
             if stale_game_ids:
-                print(f"[CLEANUP] Removed {len(stale_game_ids)} idle local game(s)")
+                logger.info(f"[CLEANUP] Removed {len(stale_game_ids)} idle local game(s)")
 
             # ── Finished tables older than 24h ────────────────────────────────
             removed = table_manager.cleanup_old_tables()
             if removed:
-                print(f"[CLEANUP] Removed {removed} old finished table(s)")
+                logger.info(f"[CLEANUP] Removed {removed} old finished table(s)")
 
             # ── Abandoned tables in any status ────────────────────────────────
             # cleanup_old_tables only reaps FINISHED tables, so a table left in
@@ -78,9 +89,9 @@ async def _periodic_cleanup():
             for tid in idle_table_ids:
                 table_manager.remove_table(tid)
             if idle_table_ids:
-                print(f"[CLEANUP] Removed {len(idle_table_ids)} abandoned table(s)")
+                logger.info(f"[CLEANUP] Removed {len(idle_table_ids)} abandoned table(s)")
         except Exception as e:
-            print(f"[CLEANUP] Error during periodic cleanup: {e}")
+            logger.exception(f"[CLEANUP] Error during periodic cleanup: {e}")
 
 
 def _table_idle_seconds(table, now) -> float:

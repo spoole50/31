@@ -5,6 +5,7 @@ This module handles table creation, player invitations, and lobby management
 for online multiplayer functionality.
 """
 
+import logging
 import uuid
 import random
 import string
@@ -14,6 +15,8 @@ from enum import Enum
 from datetime import datetime, timedelta
 
 from game_logic import GameState, AIDifficulty, create_new_game
+
+logger = logging.getLogger(__name__)
 
 
 class TableStatus(Enum):
@@ -130,12 +133,12 @@ class GameTable:
             # Check grace period for rejoining during their turn
             if not self.can_player_rejoin_during_turn(player_id):
                 time_remaining = self.game_state.get_turn_time_remaining() if self.game_state else 0
-                print(f"[REJOIN_BLOCKED] Player {player_name} blocked from rejoining - only {time_remaining}s remaining on their turn")
+                logger.info(f"[REJOIN_BLOCKED] Player {player_name} blocked from rejoining - only {time_remaining}s remaining on their turn")
                 return False
             
             # Update player activity for successful rejoin
             self.players[player_id].update_activity()
-            print(f"[REJOIN] Player {player_name} successfully rejoined table")
+            logger.info(f"[REJOIN] Player {player_name} successfully rejoined table")
             return True
         
         # New player joining
@@ -165,7 +168,7 @@ class GameTable:
             next_host.is_host = True
             # *** FIX: keep GameTable.host_id in sync ***
             self.host_id = next_host.id
-            print(f"[HOST_MIGRATION] New host: {next_host.name} ({next_host.id})")
+            logger.info(f"[HOST_MIGRATION] New host: {next_host.name} ({next_host.id})")
 
         # If no players left, mark table for cleanup
         if not self.players:
@@ -263,7 +266,7 @@ class GameTable:
             
             return True
         except Exception as e:
-            print(f"Error starting game: {e}")  # Debug logging
+            logger.exception(f"Error starting game: {e}")
             return False
     
     def restart_game(self) -> bool:
@@ -284,11 +287,11 @@ class GameTable:
             self.game_state = None
             self.player_id_mapping = {}
             
-            print(f"Game restarted for table {self.table_id} with {len(self.players)} players")
+            logger.info(f"Game restarted for table {self.table_id} with {len(self.players)} players")
             return True
             
         except Exception as e:
-            print(f"Error restarting game: {e}")
+            logger.exception(f"Error restarting game: {e}")
             return False
 
     def to_dict(self) -> dict:

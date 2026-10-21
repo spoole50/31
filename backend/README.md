@@ -9,7 +9,6 @@ backend/
 ├── main.py               # FastAPI app + Socket.IO ASGI mount + cleanup task
 ├── game_logic.py         # Core rules: GameState, Player, Card, round logic
 ├── table_logic.py        # Multiplayer table / lobby management
-├── Procfile              # Heroku / App Runner entry point
 ├── Dockerfile
 ├── requirements.txt
 ├── core/

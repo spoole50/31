@@ -49,7 +49,7 @@ Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://gi
 |---|---|
 | Frontend | React 18, Vite 5, Tailwind CSS 3, Zustand 4, Framer Motion 11, React Router v6 |
 | Realtime | socket.io-client 4, 10 s heartbeat, reconnect on drop |
-| Backend | Python 3.11, FastAPI 0.115, python-socketio 5, uvicorn, Gunicorn |
+| Backend | Python 3.11, FastAPI, python-socketio 5, uvicorn |
 | State | In-memory (single worker) · Redis stub ready for multi-worker scale-out |
 | Hosting | AWS Amplify (frontend) · AWS App Runner (backend) |
 | Container | Docker (linux/amd64), UvicornWorker |
@@ -215,22 +215,19 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full AWS guide.
 **Infrastructure:**
 - Frontend: AWS Amplify — auto-deploys on push to `main` (`npm run build → build/`)
 - Backend: AWS App Runner (`us-east-1`) — deploys from ECR on image push
-- Single Gunicorn worker with `UvicornWorker` (in-memory state; set `REDIS_URL` to enable multi-worker)
+- Single uvicorn process, App Runner pinned to one instance (state is in memory)
 
 ### Reducing cost
 
 App Runner does **not** scale to zero — it keeps 0.5 GB provisioned at all times and
-bills ~$2.50/month even with no traffic. Two ways to cut that:
-
-1. **Move the container to a scale-to-zero host** (least effort, ~$0/month at low traffic).
-   The existing `backend/Dockerfile` runs unchanged on **Google Cloud Run**
-   (`--min-instances=0 --max-instances=1`) or **Fly.io** (`auto_stop_machines`).
-   See [DEPLOYMENT.md](DEPLOYMENT.md#cost-estimate) for the full comparison.
-2. **Make local play client-side** (bigger change, removes the backend from the hot path).
-   Every local single-player action currently round-trips to `/api/games/*`, so even
-   offline-style play needs the paid server running. Porting `game_logic.py` +
-   `ai/engine.py` to JS would make local games run entirely in the browser (static,
-   free on Amplify) and leave the backend needed **only** for online multiplayer.
+bills ~$2.50/month even with no traffic. That is still the cheapest AWS option for this
+backend (App Runner is closed to new AWS customers but fully supported for this
+account; see [DEPLOYMENT.md](DEPLOYMENT.md#app-runner-status-checked-october-2026)).
+The way to shrink what the backend has to do is to **make local play client-side**
+(bigger change, removes the backend from the hot path). Every local single-player action currently round-trips to `/api/games/*`, so even
+offline-style play needs the paid server running. Porting `game_logic.py` +
+`ai/engine.py` to JS would make local games run entirely in the browser (static,
+free on Amplify) and leave the backend needed **only** for online multiplayer.
 
 ---
 
