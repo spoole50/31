@@ -67,6 +67,14 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 | POST | `/api/tables/{id}/leave` | Leave a table |
 | GET | `/api/player/{id}/table` | Get a player's current table |
 
+> **Seat tokens.** `POST /api/tables` and `POST /api/tables/join` return a
+> `player_token` alongside the table. It is sent only to the player it seats.
+> Every call that acts as a player (`start`, `restart`, `add-ai`, `leave`,
+> `GET /player/{id}/table`, and joining with an id that is already seated)
+> needs it in an `X-Player-Token` header, and the `join_table` socket event
+> needs it as `player_token`. Player ids are visible to the whole table, so
+> they identify a seat but don't prove you own it.
+
 > Table *lobby* management is REST; the *game itself* is Socket.IO only. The old
 > `GET /tables/{id}/game` and `POST /tables/{id}/game/{action}` were removed —
 > neither verified the caller's identity, so the read leaked opponents' hands
@@ -76,7 +84,7 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 
 | Direction | Event | Description |
 |---|---|---|
-| → server | `join_table` | Enter a table room (also reconnect path) |
+| → server | `join_table` | Enter a table room (also reconnect path); needs `player_token` |
 | → server | `leave_table` | Voluntarily leave the table |
 | → server | `game_action` | `draw` / `discard` / `knock` with SID verification |
 | → server | `ping` | Heartbeat (every 10 s) |
@@ -104,8 +112,9 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 
 ## Security
 
+- **Seat tokens** — a per-player secret issued on create/join; required to attach a socket (`join_table`) or to act as a player over REST, so knowing someone's player id isn't enough to take their seat
 - **SID verification** — `game_action` checks the socket SID matches the claimed `player_id`
-- **Host validation** — only the host can start, restart, or add AI
+- **Host validation** — only the host (with the host's seat token) can start, restart, or add AI
 - **Invite codes** — random 6-character alphanumeric
 - **Password protection** — optional per-table
 

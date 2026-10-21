@@ -391,10 +391,6 @@ workflow**, and watch it build, push, and roll out.
 
 ### Known gaps
 
-- [ ] **Player ids are bearer credentials.** `join_table` re-attaches any socket
-      that names a seated `player_id`, and the table payload lists every
-      player's id, so another player at the table could take over a seat.
-      Fixing it needs a per-player secret issued on create/join.
 - [ ] A refresh *on your own turn* still skips that turn (the disconnect
       handler skips immediately so the table doesn't stall).
 - [ ] Redis (`REDIS_URL`) for state persistence across redeploys — the store

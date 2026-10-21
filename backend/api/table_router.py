@@ -6,9 +6,9 @@ The WebSocket layer (socket_handlers.py) handles real-time events;
 these endpoints handle lobby creation, joining, and control actions.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Annotated, Optional
 
 from table_logic import table_manager, TableStatus, AIDifficulty
 from core.limits import MAX_LIVE_TABLES, ensure_capacity, limit_creates
@@ -16,6 +16,21 @@ from core.socket import sio
 from utils.serializers import table_to_dict
 
 router = APIRouter()
+
+# Seat token issued in the create/join response. Every endpoint that acts as a
+# player must present it: player ids (including host_id) are published to the
+# whole table, so on their own they let anyone act as anyone.
+PlayerToken = Annotated[Optional[str], Header(alias="X-Player-Token")]
+
+
+def _require_player(player_id: str, token: Optional[str]) -> None:
+    if not table_manager.verify_player_token(player_id, token):
+        raise HTTPException(status_code=403, detail="Invalid or missing player token")
+
+
+def _seated_response(table, player_id: str) -> dict:
+    """Table payload plus the caller's own seat token (only ever sent to them)."""
+    return {**table_to_dict(table), "player_token": table_manager.get_player_token(player_id)}
 
 
 # ── Request models ────────────────────────────────────────────────────────────
@@ -78,13 +93,21 @@ def create_table(req: CreateTableRequest):
         is_private=req.is_private,
         password=req.password,
     )
-    return table_to_dict(table)
+    return _seated_response(table, req.host_id)
 
 
 @router.post("/tables/join")
-def join_table(req: JoinTableRequest):
+def join_table(req: JoinTableRequest, player_token: PlayerToken = None):
     if not req.player_id or not req.player_name:
         raise HTTPException(status_code=400, detail="player_id and player_name are required")
+
+    # Joining moves a seated player_id out of its current seat (or rejoins it),
+    # so only the seat's owner may do it. Without this check anyone who knew
+    # the invite code could join *as* another player and take over their seat.
+    if table_manager.get_player_table(req.player_id) and not table_manager.verify_player_token(
+        req.player_id, player_token
+    ):
+        raise HTTPException(status_code=409, detail="That player is already seated at a table")
 
     if not req.invite_code and not req.table_id:
         raise HTTPException(status_code=400, detail="Either invite_code or table_id is required")
@@ -102,11 +125,12 @@ def join_table(req: JoinTableRequest):
             detail="Could not join table — not found, full, game in progress, or wrong password",
         )
 
-    return table_to_dict(table)
+    return _seated_response(table, req.player_id)
 
 
 @router.post("/tables/{table_id}/leave")
-def leave_table(table_id: str, req: LeaveTableRequest):
+def leave_table(table_id: str, req: LeaveTableRequest, player_token: PlayerToken = None):
+    _require_player(req.player_id, player_token)
     success = table_manager.leave_table(req.player_id)
     if not success:
         raise HTTPException(status_code=400, detail="Player not in table")
@@ -130,10 +154,11 @@ def get_table(table_id: str):
 # ── Game control (host only) ──────────────────────────────────────────────────
 
 @router.post("/tables/{table_id}/start")
-async def start_game(table_id: str, req: StartGameRequest):
+async def start_game(table_id: str, req: StartGameRequest, player_token: PlayerToken = None):
     table = table_manager.get_table(table_id)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
+    _require_player(req.host_id, player_token)
 
     if not table.is_host(req.host_id):
         raise HTTPException(status_code=403, detail="Only the host can start the game")
@@ -167,10 +192,11 @@ async def start_game(table_id: str, req: StartGameRequest):
 
 
 @router.post("/tables/{table_id}/restart")
-def restart_game(table_id: str, req: RestartGameRequest):
+def restart_game(table_id: str, req: RestartGameRequest, player_token: PlayerToken = None):
     table = table_manager.get_table(table_id)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
+    _require_player(req.host_id, player_token)
 
     if not table.is_host(req.host_id):
         raise HTTPException(status_code=403, detail="Only the host can restart the game")
@@ -185,10 +211,11 @@ def restart_game(table_id: str, req: RestartGameRequest):
 
 
 @router.post("/tables/{table_id}/add-ai")
-def add_ai(table_id: str, req: AddAIRequest):
+def add_ai(table_id: str, req: AddAIRequest, player_token: PlayerToken = None):
     table = table_manager.get_table(table_id)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
+    _require_player(req.host_id, player_token)
 
     if not table.is_host(req.host_id):
         raise HTTPException(status_code=403, detail="Only the host can add AI players")
@@ -223,8 +250,9 @@ def add_ai(table_id: str, req: AddAIRequest):
 # ── Player lookup ─────────────────────────────────────────────────────────────
 
 @router.get("/player/{player_id}/table")
-def get_player_table(player_id: str):
+def get_player_table(player_id: str, player_token: PlayerToken = None):
     table = table_manager.get_player_table(player_id)
     if not table:
         raise HTTPException(status_code=404, detail="Player not in any table")
+    _require_player(player_id, player_token)
     return table_to_dict(table)

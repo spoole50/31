@@ -131,7 +131,7 @@ fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Player-Token"],
 )
 
 fastapi_app.include_router(game_router, prefix="/api")

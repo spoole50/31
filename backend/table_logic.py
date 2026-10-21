@@ -8,6 +8,7 @@ for online multiplayer functionality.
 import logging
 import uuid
 import random
+import secrets
 import string
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
@@ -44,6 +45,10 @@ class TablePlayer:
     last_activity: Optional[datetime] = None
     is_ai: bool = False
     ai_difficulty: Optional[AIDifficulty] = None
+    # Secret proving the caller owns this seat. player_id is published to the
+    # whole table, so it can't be the credential. Never serialised to clients
+    # except in the create/join response that seats this player.
+    token: str = field(default_factory=lambda: secrets.token_urlsafe(24), repr=False)
     
     def __post_init__(self):
         if self.joined_at is None and self.status == PlayerStatus.JOINED:
@@ -434,6 +439,19 @@ class TableManager:
         
         return success
     
+    def verify_player_token(self, player_id: str, token: Optional[str]) -> bool:
+        """True if `token` is the seat token of `player_id` at their current table."""
+        table = self.get_player_table(player_id)
+        player = table.players.get(player_id) if table else None
+        if not player or not token:
+            return False
+        return secrets.compare_digest(player.token, token)
+
+    def get_player_token(self, player_id: str) -> Optional[str]:
+        table = self.get_player_table(player_id)
+        player = table.players.get(player_id) if table else None
+        return player.token if player else None
+
     def get_player_table(self, player_id: str) -> Optional[GameTable]:
         """Get the table a player is currently in"""
         if player_id not in self.player_to_table:

@@ -18,8 +18,10 @@ const API = import.meta.env.VITE_API_URL || ''
 
 // ── Tiny fetch helper ─────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
+  // Seat token from create/join — proves we own our player id at the table
+  const token = localStorage.getItem('playerToken')
   const res = await fetch(`${API}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token && { 'X-Player-Token': token }) },
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   })
@@ -184,6 +186,7 @@ const useGameStore = create((set, get) => ({
         body: { host_id: playerId, host_name: playerName, table_name: tableName, max_players: maxPlayers, is_private: isPrivate },
       })
       localStorage.setItem('tableId', table.table_id)
+      localStorage.setItem('playerToken', table.player_token)
       set({ table, onlineLoading: false })
       get()._connectSocket(table.table_id)
     } catch (e) {
@@ -200,6 +203,7 @@ const useGameStore = create((set, get) => ({
         body: { player_id: playerId, player_name: playerName, invite_code: inviteCode },
       })
       localStorage.setItem('tableId', table.table_id)
+      localStorage.setItem('playerToken', table.player_token)
       set({ table, onlineLoading: false })
       get()._connectSocket(table.table_id)
     } catch (e) {
@@ -229,6 +233,7 @@ const useGameStore = create((set, get) => ({
     } catch {
       // Grace period expired or the table is gone — nothing to resume
       localStorage.removeItem('tableId')
+      localStorage.removeItem('playerToken')
       set({ resuming: false })
     }
   },
@@ -236,13 +241,17 @@ const useGameStore = create((set, get) => ({
   leaveTable: async () => {
     const { playerId, table } = get()
     localStorage.removeItem('tableId')
-    if (!table) return
+    if (!table) {
+      localStorage.removeItem('playerToken')
+      return
+    }
     try {
       await api(`/api/tables/${table.table_id}/leave`, {
         method: 'POST',
         body: { player_id: playerId },
       })
     } catch { /* best effort */ }
+    localStorage.removeItem('playerToken')  // after the leave call, which needs it
     socket.emit('leave_table', { table_id: table.table_id, player_id: playerId })
     socket.disconnect()
     // Clean up heartbeat interval on leave
@@ -311,6 +320,15 @@ const useGameStore = create((set, get) => ({
       set({ _heartbeatInterval: null })
     }
 
+    // The seat token is read at send time so a reconnect always uses the
+    // current one.
+    const joinRoom = () => socket.emit('join_table', {
+      table_id: tableId,
+      player_id: playerId,
+      player_name: playerName,
+      player_token: localStorage.getItem('playerToken'),
+    })
+
     // (Re)attach to the table on EVERY connect, not just the first. After an
     // automatic reconnect (network blip, or the socket dropping while a
     // refreshed page resumes) the new socket isn't mapped to this player until
@@ -318,7 +336,7 @@ const useGameStore = create((set, get) => ({
     // disconnect grace period runs out.
     socket.on('connect', () => {
       set({ socketConnected: true })
-      socket.emit('join_table', { table_id: tableId, player_id: playerId, player_name: playerName })
+      joinRoom()
     })
     socket.on('disconnect', () => set({ socketConnected: false }))
 
@@ -331,7 +349,7 @@ const useGameStore = create((set, get) => ({
 
     if (socket.connected) {
       // Already connected (no 'connect' event will fire) — attach directly
-      socket.emit('join_table', { table_id: tableId, player_id: playerId, player_name: playerName })
+      joinRoom()
     } else {
       socket.connect()
     }

@@ -2,7 +2,7 @@
 Socket.IO event handlers for real-time multiplayer.
 
 Events the CLIENT sends to server:
-  join_table       {table_id, player_id, player_name, invite_code?}
+  join_table       {table_id, player_id, player_name, player_token}
   leave_table      {table_id, player_id}
   game_action      {table_id, player_id, action, ...params}
        action = "draw"    + from_discard: bool
@@ -223,6 +223,12 @@ async def on_join_table(sid, data):
     # period expires the player is removed, so a late reconnect lands here.
     if player_id not in table.players:
         await _error(sid, "You are no longer at this table")
+        return
+
+    # player_id is visible to everyone at the table, so it can't prove who
+    # the caller is; the seat token issued on create/join does.
+    if not table_manager.verify_player_token(player_id, data.get("player_token")):
+        await _error(sid, "Invalid player token")
         return
 
     # Register the socket mapping (also evicts any stale SID)
