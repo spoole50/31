@@ -394,9 +394,12 @@ workflow**, and watch it build, push, and roll out.
 - [ ] **Invite codes are not access control.** Tables are created with
       `is_private: false`, so `GET /api/tables/public` lists them and they can be
       joined by ID without the code.
-- [ ] **A page refresh during an online game drops the player.** `table` is not
-      persisted to localStorage, and REST rejoin requires status `waiting`, so
-      the 30 s disconnect grace period cannot save a refreshing player.
+- [ ] **Player ids are bearer credentials.** `join_table` re-attaches any socket
+      that names a seated `player_id`, and the table payload lists every
+      player's id, so another player at the table could take over a seat.
+      Fixing it needs a per-player secret issued on create/join.
+- [ ] A refresh *on your own turn* still skips that turn (the disconnect
+      handler skips immediately so the table doesn't stall).
 - [ ] Redis (`REDIS_URL`) for state persistence across redeploys — the store
       interface exists but no mutation is actually persisted yet.
 - [ ] CloudWatch alerts on App Runner for error spikes

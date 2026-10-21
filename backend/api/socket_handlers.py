@@ -219,6 +219,12 @@ async def on_join_table(sid, data):
         await _error(sid, "Table not found")
         return
 
+    # Only seated players may attach a socket. After the disconnect grace
+    # period expires the player is removed, so a late reconnect lands here.
+    if player_id not in table.players:
+        await _error(sid, "You are no longer at this table")
+        return
+
     # Register the socket mapping (also evicts any stale SID)
     store.register_sid(sid, player_id)
     await sio.enter_room(sid, table_id)

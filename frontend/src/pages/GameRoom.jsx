@@ -5,11 +5,16 @@ import GameBoard from '../components/GameBoard.jsx'
 
 export default function GameRoom() {
   const navigate = useNavigate()
-  const { onlineGame, table, leaveTable } = useGameStore()
+  const { onlineGame, table, resuming, resumeTable, leaveTable } = useGameStore()
+
+  // After a refresh, try to get back into the saved table before giving up
+  useEffect(() => {
+    if (!table) resumeTable()
+  }, [])
 
   useEffect(() => {
-    if (!table) navigate('/online', { replace: true })
-  }, [table, navigate])
+    if (!table && !resuming) navigate('/online', { replace: true })
+  }, [table, resuming, navigate])
 
   if (!onlineGame) {
     return (

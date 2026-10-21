@@ -5,14 +5,19 @@ import useGameStore from '../store/gameStore.js'
 export default function TableLobby() {
   const navigate = useNavigate()
   const {
-    playerId, playerName, table, onlineGame,
+    playerId, playerName, table, onlineGame, resuming, resumeTable,
     startOnlineGame, addAI, leaveTable, onlineLoading, onlineError,
   } = useGameStore()
 
+  // After a refresh, try to get back into the saved table before giving up
+  useEffect(() => {
+    if (!table) resumeTable()
+  }, [])
+
   // Guard: redirect if no table
   useEffect(() => {
-    if (!table) navigate('/online', { replace: true })
-  }, [table, navigate])
+    if (!table && !resuming) navigate('/online', { replace: true })
+  }, [table, resuming, navigate])
 
   // Transition to game when it starts
   useEffect(() => {

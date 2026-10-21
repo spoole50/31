@@ -157,6 +157,9 @@ const useGameStore = create((set, get) => ({
   playerId: localStorage.getItem('playerId') || null,
   playerName: localStorage.getItem('playerName') || '',
   table: null,
+  // True while a refreshed page is trying to get back into its saved table;
+  // the lobby / game pages wait on this before redirecting away.
+  resuming: !!localStorage.getItem('tableId'),
   onlineGame: null,
   onlineGamePlayerId: null,  // game-level player ID (different from table player ID)
   onlineError: null,
@@ -180,6 +183,7 @@ const useGameStore = create((set, get) => ({
         method: 'POST',
         body: { host_id: playerId, host_name: playerName, table_name: tableName, max_players: maxPlayers, is_private: isPrivate },
       })
+      localStorage.setItem('tableId', table.table_id)
       set({ table, onlineLoading: false })
       get()._connectSocket(table.table_id)
     } catch (e) {
@@ -195,6 +199,7 @@ const useGameStore = create((set, get) => ({
         method: 'POST',
         body: { player_id: playerId, player_name: playerName, invite_code: inviteCode },
       })
+      localStorage.setItem('tableId', table.table_id)
       set({ table, onlineLoading: false })
       get()._connectSocket(table.table_id)
     } catch (e) {
@@ -202,8 +207,35 @@ const useGameStore = create((set, get) => ({
     }
   },
 
+  /**
+   * After a page refresh, rejoin the table this browser was sitting at.
+   *
+   * The server keeps a dropped player seated for a 30 s grace period. If we
+   * reconnect inside it, `join_table` re-registers our socket and the server
+   * replays the current game state, so play continues where it left off.
+   */
+  resumeTable: async () => {
+    const { playerId, table } = get()
+    if (table || !playerId || !localStorage.getItem('tableId')) {
+      set({ resuming: false })
+      return
+    }
+    set({ resuming: true })
+    try {
+      const current = await api(`/api/player/${playerId}/table`)
+      localStorage.setItem('tableId', current.table_id)
+      set({ table: current, resuming: false })
+      get()._connectSocket(current.table_id)
+    } catch {
+      // Grace period expired or the table is gone — nothing to resume
+      localStorage.removeItem('tableId')
+      set({ resuming: false })
+    }
+  },
+
   leaveTable: async () => {
     const { playerId, table } = get()
+    localStorage.removeItem('tableId')
     if (!table) return
     try {
       await api(`/api/tables/${table.table_id}/leave`, {
@@ -279,26 +311,30 @@ const useGameStore = create((set, get) => ({
       set({ _heartbeatInterval: null })
     }
 
-    socket.connect()
-
-    socket.once('connect', () => {
+    // (Re)attach to the table on EVERY connect, not just the first. After an
+    // automatic reconnect (network blip, or the socket dropping while a
+    // refreshed page resumes) the new socket isn't mapped to this player until
+    // it sends join_table, and the server would eliminate us when the
+    // disconnect grace period runs out.
+    socket.on('connect', () => {
       set({ socketConnected: true })
       socket.emit('join_table', { table_id: tableId, player_id: playerId, player_name: playerName })
-
-      // Heartbeat every 10 seconds — store the interval so we can clean it up
-      const heartbeat = setInterval(() => {
-        if (socket.connected) {
-          socket.emit('ping', { player_id: playerId })
-        } else {
-          clearInterval(heartbeat)
-          set({ _heartbeatInterval: null })
-        }
-      }, 10_000)
-      set({ _heartbeatInterval: heartbeat })
     })
-
-    socket.on('connect', () => set({ socketConnected: true }))
     socket.on('disconnect', () => set({ socketConnected: false }))
+
+    // Heartbeat every 10 seconds while connected. It keeps running across
+    // reconnects and is cleared on leave or the next _connectSocket.
+    const heartbeat = setInterval(() => {
+      if (socket.connected) socket.emit('ping', { player_id: playerId })
+    }, 10_000)
+    set({ _heartbeatInterval: heartbeat })
+
+    if (socket.connected) {
+      // Already connected (no 'connect' event will fire) — attach directly
+      socket.emit('join_table', { table_id: tableId, player_id: playerId, player_name: playerName })
+    } else {
+      socket.connect()
+    }
 
     socket.on('table_updated', (table) => set({ table }))
 
@@ -308,6 +344,8 @@ const useGameStore = create((set, get) => ({
     })
 
     socket.on('player_disconnected', ({ player_id, player_name, new_host_id, may_reconnect }) => {
+      // After a refresh we hear about our own old socket dropping — ignore it
+      if (player_id === get().playerId) return
       set((s) => ({
         disconnectedPlayers: [...s.disconnectedPlayers, { player_id, player_name }],
         notice: may_reconnect

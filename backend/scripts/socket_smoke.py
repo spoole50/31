@@ -8,6 +8,8 @@ the security-critical behaviours:
   1. per-player payloads hide opponents' hands
   2. game_action from a socket that doesn't own the claimed player is rejected
      (impersonation), while the real owner's identical action is accepted
+  3. a player who drops mid-game can rejoin within the grace period and gets
+     the running game back; a player who isn't seated can't attach at all
 
 Usage:
     # start the backend first, e.g. uvicorn main:app --port 8000
@@ -115,8 +117,36 @@ async def main() -> int:
     await asyncio.sleep(0.8)
     check("the real owner's identical action is accepted", len(ev["a"]) > m)
 
+    print("\nrejoin after refresh:")
     await a.disconnect()
+    await asyncio.sleep(0.5)
+    # What the frontend does on reload: look up its table, then re-attach.
+    seated = call("GET", "/player/p_alice/table")
+    check("disconnected player is still seated during the grace period",
+          seated["table_id"] == tid)
+    a2 = socketio.AsyncClient()
+    rejoined = []
+    a2.on("game_updated", lambda d: rejoined.append(d))
+    await a2.connect(BASE)
+    await a2.emit("join_table", {"table_id": tid, "player_id": "p_alice", "player_name": "Alice"})
+    await asyncio.sleep(0.8)
+    check("rejoining socket receives the running game",
+          bool(rejoined) and rejoined[-1]["your_player_id"] == ga["your_player_id"])
+    check("rejoined payload still hides opponents' hands",
+          bool(rejoined) and hands_hidden_from(rejoined[-1], ga["your_player_id"]))
+
+    print("\nnon-member join_table:")
+    c = socketio.AsyncClient()
+    c_err = []
+    c.on("error", lambda d: c_err.append(d))
+    await c.connect(BASE)
+    await c.emit("join_table", {"table_id": tid, "player_id": "p_mallory", "player_name": "M"})
+    await asyncio.sleep(0.6)
+    check("a player who isn't seated can't attach to the table", bool(c_err))
+
+    await a2.disconnect()
     await b.disconnect()
+    await c.disconnect()
     return 1 if _failures else 0
 
 
