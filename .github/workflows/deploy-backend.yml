@@ -37,6 +37,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check deploy configuration
+        # Fail with a readable message instead of configure-aws-credentials'
+        # "Input required and not supplied: aws-region" when the one-time
+        # setup in DEPLOYMENT.md ("GitHub Actions setup") hasn't been done.
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          missing=""
+          for v in AWS_REGION AWS_DEPLOY_ROLE_ARN ECR_REPOSITORY; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository variables:$missing. Set them under Settings → Secrets and variables → Actions → Variables (see DEPLOYMENT.md, 'GitHub Actions setup')."
+            exit 1
+          fi
+
       - name: Set up Buildx
         # Required for the gha build cache below — the default docker driver
         # can't export/import type=gha.
