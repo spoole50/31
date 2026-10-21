@@ -34,7 +34,13 @@ async function api(path, opts = {}) {
   return data
 }
 
+const AI_TURN_DELAY_MS = 900
+const AI_TURN_RETRIES = 3
+
 // ── Store ─────────────────────────────────────────────────────────────────────
+// Actions that pages navigate after (start a game, create/join a table)
+// resolve to true on success. Pages used to navigate unconditionally, so a
+// failed request bounced through the next page and straight back again.
 const useGameStore = create((set, get) => ({
   // ── Local game ──────────────────────────────────────────────────────────────
   localGame: null,
@@ -58,8 +64,10 @@ const useGameStore = create((set, get) => ({
 
       // Chain AI turns immediately if it starts on AI
       get()._maybeLocalAITurn(game)
+      return true
     } catch (e) {
       set({ localLoading: false, localError: e.message })
+      return false
     }
   },
 
@@ -113,7 +121,7 @@ const useGameStore = create((set, get) => ({
     if (!localGame) return
     try {
       const game = await api(`/api/games/${localGame.game_id}/timeout`, { method: 'POST' })
-      set({ localGame: game })
+      set({ localGame: game, notice: "Time's up — your turn was skipped" })
       get()._maybeLocalAITurn(game)
     } catch (e) {
       set({ localError: e.message })
@@ -121,7 +129,7 @@ const useGameStore = create((set, get) => ({
   },
 
   /** Recursively play AI turns, then trigger pass-and-play handoff if needed. */
-  _maybeLocalAITurn: async (game) => {
+  _maybeLocalAITurn: async (game, attempt = 0) => {
     if (!game || game.phase === 'finished') return
     const current = game.players[game.current_player_id]
 
@@ -134,13 +142,21 @@ const useGameStore = create((set, get) => ({
       return
     }
 
-    await new Promise((r) => setTimeout(r, 900))
+    await new Promise((r) => setTimeout(r, AI_TURN_DELAY_MS))
+    // The player left mid-turn; don't keep playing a game nobody is watching
+    if (get().localGame?.game_id !== game.game_id) return
     try {
       const next = await api(`/api/games/${game.game_id}/ai-turn`, { method: 'POST' })
       set({ localGame: next })
       get()._maybeLocalAITurn(next)
-    } catch {
-      // AI turn failed — ignore silently
+    } catch (e) {
+      // Used to be swallowed, which froze the game on the AI's turn with no
+      // explanation. Retry a few times, then say so.
+      if (attempt < AI_TURN_RETRIES) {
+        get()._maybeLocalAITurn(game, attempt + 1)
+      } else {
+        set({ localError: `The AI couldn't take its turn (${e.message}). Leave and start a new game.` })
+      }
     }
   },
 
@@ -153,6 +169,7 @@ const useGameStore = create((set, get) => ({
   },
 
   clearLocalGame: () => set({ localGame: null, localPlayerId: null, localHandoffPlayerId: null, localError: null, localUseTimer: false }),
+  clearLocalError: () => set({ localError: null }),
 
   // ── Online / table ──────────────────────────────────────────────────────────
   // Rehydrate from localStorage so page refreshes don't lose player identity
@@ -189,8 +206,10 @@ const useGameStore = create((set, get) => ({
       localStorage.setItem('playerToken', table.player_token)
       set({ table, onlineLoading: false })
       get()._connectSocket(table.table_id)
+      return true
     } catch (e) {
       set({ onlineLoading: false, onlineError: e.message })
+      return false
     }
   },
 
@@ -206,8 +225,10 @@ const useGameStore = create((set, get) => ({
       localStorage.setItem('playerToken', table.player_token)
       set({ table, onlineLoading: false })
       get()._connectSocket(table.table_id)
+      return true
     } catch (e) {
       set({ onlineLoading: false, onlineError: e.message })
+      return false
     }
   },
 
@@ -270,6 +291,22 @@ const useGameStore = create((set, get) => ({
         body: { host_id: playerId },
       })
       set({ table: updated, onlineLoading: false })
+    } catch (e) {
+      set({ onlineLoading: false, onlineError: e.message })
+    }
+  },
+
+  /** Host only: after a finished game, reopen the lobby for a rematch. */
+  restartOnlineGame: async () => {
+    const { playerId, table } = get()
+    if (!table) return
+    set({ onlineLoading: true, onlineError: null })
+    try {
+      const updated = await api(`/api/tables/${table.table_id}/restart`, {
+        method: 'POST',
+        body: { host_id: playerId },
+      })
+      set({ table: updated, onlineGame: null, onlineLoading: false })
     } catch (e) {
       set({ onlineLoading: false, onlineError: e.message })
     }
@@ -354,7 +391,10 @@ const useGameStore = create((set, get) => ({
       socket.connect()
     }
 
-    socket.on('table_updated', (table) => set({ table }))
+    // A table back in 'waiting' means the host restarted after a finished
+    // game: drop the old game so everyone returns to the lobby.
+    socket.on('table_updated', (table) =>
+      set(table.status === 'waiting' ? { table, onlineGame: null } : { table }))
 
     socket.on('game_updated', (game) => {
       // Server sends `your_player_id` in each per-player payload

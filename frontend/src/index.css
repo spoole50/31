@@ -24,12 +24,27 @@
   html { overscroll-behavior: none; }
   body {
     background-color: theme('colors.felt.dark');
+    /* A soft pool of light in the middle of the table. Fixed so it doesn't
+       stretch or tile on long pages. */
+    background-image: radial-gradient(ellipse at 50% 35%, theme('colors.felt.DEFAULT' / 55%), transparent 70%);
+    background-attachment: fixed;
     color: white;
     font-family: theme('fontFamily.sans');
     -webkit-tap-highlight-color: transparent;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   * { box-sizing: border-box; }
+
+  /* The app shell. Safe-area padding lives here rather than on <body>: on
+     body it was added on top of each page's 100vh min-height, so notched
+     phones always got a scrollbar. dvh tracks the mobile URL bar. Pages are
+     flex children and grow with `flex-1`. */
+  #root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
 
   /* Visible keyboard focus everywhere, suppressed for pointer input. */
   :focus-visible {
@@ -53,24 +68,40 @@
   }
 
   /* ── Playing cards ─────────────────────────────────────────────────────── */
+  /* Movement (lift on hover, raise when selected) is Framer Motion's job.
+     It writes an inline transform, which silently overrode the CSS
+     transforms that used to live here, and a CSS :hover lift stuck "on"
+     after a tap on touch screens. */
   .playing-card {
     position: relative;
+    flex-shrink: 0;
     background: theme('colors.card.bg');
     border: 1px solid theme('colors.card.border');
     border-radius: 0.5rem;
-    cursor: pointer;
     user-select: none;
     aspect-ratio: 2.5 / 3.5;
     box-shadow: theme('boxShadow.card');
-    transition: box-shadow 0.2s ease-out, transform 0.2s ease-out;
+    transition: box-shadow 0.2s ease-out;
+    text-align: left;
   }
-  .playing-card:hover { transform: translateY(-4px); box-shadow: theme('boxShadow.card-hover'); }
+  .playing-card.interactive { cursor: pointer; }
+  @media (hover: hover) {
+    .playing-card.interactive:hover { box-shadow: theme('boxShadow.card-hover'); }
+  }
   .playing-card.selected {
-    transform: translateY(-12px);
     box-shadow: theme('boxShadow.glow');
-    outline: 2px solid theme('colors.gold.DEFAULT');
+    outline: 3px solid theme('colors.gold.DEFAULT');
+    outline-offset: 1px;
   }
-  .playing-card.back { background: theme('colors.felt.DEFAULT'); cursor: default; }
+  .playing-card.back { background: theme('colors.felt.DEFAULT'); }
+
+  /* One place for card widths, shared by cards, piles and placeholders so
+     they always line up. Height follows from the aspect ratio. */
+  .card-md { width: 4.5rem; }
+  .card-sm { width: 2.75rem; }
+  @screen sm {
+    .card-md { width: 5.5rem; }
+  }
 
   /* ── Buttons ───────────────────────────────────────────────────────────── */
   .btn {
@@ -84,6 +115,7 @@
     transition: background-color 0.15s, transform 0.15s, opacity 0.15s;
     cursor: pointer;
     border: none;
+    white-space: nowrap;
     /* Keep taps from being swallowed on small controls (WCAG target size). */
     min-height: 2.75rem;
   }
@@ -99,7 +131,17 @@
   .btn-secondary:hover:not(:disabled) { background: rgb(255 255 255 / 0.2); }
   .btn-danger { background: theme('colors.red.600'); color: white; }
   .btn-danger:hover:not(:disabled) { background: theme('colors.red.500'); }
+  /* A disabled red slab read as an alarm on every opponent's turn. Fade it
+     to a neutral outline instead; it turns red when it becomes usable. */
+  .btn-danger:disabled {
+    opacity: 1;
+    background: rgb(255 255 255 / 0.04);
+    color: rgb(255 255 255 / 0.45);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  }
   .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.875rem; border-radius: 0.5rem; min-height: 2rem; }
+  /* Square icon-only control at the full 44px target size. */
+  .btn-icon { width: 2.75rem; height: 2.75rem; padding: 0; font-size: 1.125rem; }
   .btn-lg { padding: 1rem 1.75rem; font-size: 1.125rem; border-radius: 1rem; }
 
   /* ── Forms ─────────────────────────────────────────────────────────────── */
@@ -134,12 +176,13 @@
   .badge-muted { background: rgb(255 255 255 / 0.1); color: rgb(255 255 255 / 0.6); }
   .badge-knocked { background: theme('colors.orange.500' / 20%); color: theme('colors.orange.300'); }
 
-  .life-dot { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 9999px; }
+  .life-dot { display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 9999px; }
   .life-dot.active { background: theme('colors.red.500'); }
   .life-dot.lost { background: rgb(255 255 255 / 0.2); }
 }
 
-/* Respect users who ask for less motion — Framer Motion reads this too. */
+/* Respect users who ask for less motion. This covers CSS only; Framer Motion
+   is opted in separately with <MotionConfig reducedMotion="user"> in main.jsx. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

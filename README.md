@@ -35,7 +35,11 @@ Live at [31.spoole.dev](https://31.spoole.dev) · Built by [spoole50](https://gi
 - **Pass-and-play** — multiple human players share a device with a hand-reveal handoff screen
 - **AI difficulty levels** — Easy, Medium, Hard, Expert
 - **Optional turn timer** — 45-second countdown per turn (toggle in setup)
-- **Online multiplayer** — create or join tables with a 6-character invite code
+- **Online multiplayer** — create or join tables with a 6-character invite code,
+  or share a link (`/online?code=ABC123`); the host can start a rematch from
+  the results screen
+- **Round summary** — after every round, everyone's final hand, score and who
+  lost a life (backed by the `last_round` field in the game state)
 - **Real-time via Socket.IO** — server pushes every move; long-polling in production
   (App Runner has no WebSockets), real WebSockets locally
 - **Card animations** — spring flip-in, draw pop, Framer Motion throughout

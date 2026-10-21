@@ -1,111 +1,97 @@
 /**
- * A player's hand of cards.
+ * The viewing player's hand.
  *
- * When isActivePlayer && canInteract, clicking a card selects it (if 4 cards)
- * or does nothing (3 cards — must draw first).
- * Selected card is highlighted; tapping again or pressing "Discard" confirms.
+ * With 4 cards on your turn (you have drawn), tapping a card selects it and
+ * tapping it again discards it; the Discard button does the same for anyone
+ * who prefers an explicit confirm.
+ *
+ * Below the cards is a fixed-height slot holding either the Discard button or
+ * a one-line prompt (`hint`), so the layout never jumps between turns.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Card from './Card.jsx'
+import Lives from './Lives.jsx'
 
-export default function PlayerHand({
-  player,
-  isCurrentPlayer,
-  isActivePlayer,
-  canInteract,
-  onDiscard,
-  gamePhase,
-}) {
+const FULL_HAND = 4
+
+export default function PlayerHand({ player, isActivePlayer, canInteract, onDiscard, gamePhase, hint }) {
   const [selectedIndex, setSelectedIndex] = useState(null)
-  const prevHandLengthRef = useRef(player?.hand?.length ?? 0)
-  const [newCardIndex, setNewCardIndex] = useState(null)
-
   const hand = player?.hand || []
 
-  // Detect when a card was just drawn (hand grew by 1) so we can pop-animate it.
-  // Also drop any selection: the hand can shrink without us discarding it
-  // ourselves (a server-side turn timeout force-discards), and a stale index
-  // would leave a card looking pre-selected on a later turn.
-  useEffect(() => {
-    const prev = prevHandLengthRef.current
-    if (hand.length !== prev) setSelectedIndex(null)
-    if (hand.length === prev + 1) {
-      setNewCardIndex(hand.length - 1)
-      const t = setTimeout(() => setNewCardIndex(null), 400)
-      prevHandLengthRef.current = hand.length
-      return () => clearTimeout(t)
-    }
-    prevHandLengthRef.current = hand.length
-    setNewCardIndex(null)
-  }, [hand.length])
+  // Drop any selection whenever the hand changes under us — including when
+  // a server-side turn timeout force-discards — so a stale index never leaves
+  // a card looking pre-selected on a later turn.
+  const handSignature = hand.map((c) => `${c.value}${c.suit}`).join()
+  useEffect(() => { setSelectedIndex(null) }, [handSignature])
 
-  const canDiscard = canInteract && hand.length === 4
+  const canDiscard = canInteract && hand.length === FULL_HAND
+
+  const discard = (i) => {
+    setSelectedIndex(null)
+    onDiscard(i)
+  }
 
   const handleCardClick = (i) => {
     if (!canDiscard) return
-    setSelectedIndex(selectedIndex === i ? null : i)
+    if (selectedIndex === i) discard(i)
+    else setSelectedIndex(i)
   }
-
-  const handleDiscard = () => {
-    if (selectedIndex === null) return
-    onDiscard(selectedIndex)
-    setSelectedIndex(null)
-  }
-
-  const liveDots = Array.from({ length: 3 }, (_, i) => (
-    <span key={i} className={`life-dot ${i < player.lives ? 'active' : 'lost'}`} />
-  ))
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-2">
       {/* Player info bar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 h-6">
         <span className="font-semibold text-sm">{player.name}</span>
-        {player.is_ai && <span className="text-white/55 text-xs">AI</span>}
-        <div className="flex gap-1">{liveDots}</div>
+        <Lives lives={player.lives} />
+        {typeof player.score === 'number' && (
+          <span className="text-white/70 text-xs tabular-nums" title="Your best same-suit total">
+            {player.score} pts
+          </span>
+        )}
         {player.has_knocked && <span className="badge badge-knocked">Knocked</span>}
         {isActivePlayer && (
           <span className="badge badge-gold">
-            {gamePhase === 'final_round' ? 'Final turn' : 'Active'}
+            {gamePhase === 'final_round' ? 'Final turn' : 'Your turn'}
           </span>
         )}
       </div>
 
-      {/* Cards */}
-      <div className="flex gap-2">
+      {/* Cards. Keyed by identity, not position: with the index in the key,
+          discarding the first card re-keyed every card after it, so the whole
+          hand remounted and replayed its deal animation. */}
+      <div className="flex gap-2 pt-3" role="group" aria-label="Your hand">
         {hand.map((card, i) => (
           <Card
-            key={`${card.value}-${card.suit}-${i}`}
-            card={isCurrentPlayer ? card : null}
+            key={`${card.value}-${card.suit}`}
+            card={card}
             selected={selectedIndex === i}
             onClick={() => handleCardClick(i)}
             disabled={!canDiscard}
-            small={!isCurrentPlayer}
             index={i}
-            isNew={i === newCardIndex}
+            // The drawn card is always appended, and a 4th card only
+            // exists right after a draw — so it is the one to pop in.
+            isNew={i === FULL_HAND - 1}
           />
         ))}
-        {hand.length < 4 && isCurrentPlayer &&
-          Array.from({ length: 4 - hand.length }).map((_, i) => (
-            <div key={`ph-${i}`} className="w-16 opacity-0 pointer-events-none" style={{ aspectRatio: '2.5/3.5' }} />
-          ))}
+        {Array.from({ length: Math.max(0, FULL_HAND - hand.length) }, (_, i) => (
+          <div key={`ph-${i}`} className="card-md aspect-[2.5/3.5] rounded-lg border-2 border-dashed border-white/10" aria-hidden="true" />
+        ))}
       </div>
 
-      {canDiscard && (
-        <button
-          className="btn btn-danger btn-sm mt-1"
-          onClick={handleDiscard}
-          disabled={selectedIndex === null}
-        >
-          {selectedIndex !== null ? 'Discard selected' : 'Select a card to discard'}
-        </button>
-      )}
-
-      {/* Score hint for current player */}
-      {isCurrentPlayer && typeof player.score === 'number' && (
-        <span className="text-white/55 text-xs">Best hand: {player.score} pts</span>
-      )}
+      <div className="h-11 flex items-center">
+        {canDiscard ? (
+          <button
+            className="btn btn-danger"
+            onClick={() => discard(selectedIndex)}
+            disabled={selectedIndex === null}
+          >
+            {selectedIndex !== null ? 'Discard selected' : 'Choose a card to discard'}
+          </button>
+        ) : (
+          hint && <p className="text-white/70 text-sm text-center">{hint}</p>
+        )}
+      </div>
     </div>
   )
 }

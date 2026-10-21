@@ -5,7 +5,7 @@ import GameBoard from '../components/GameBoard.jsx'
 
 export default function LocalGame() {
   const navigate = useNavigate()
-  const { localGame, localPlayerId, clearLocalGame } = useGameStore()
+  const { localGame, clearLocalGame } = useGameStore()
 
   // Redirect to setup if no game (e.g. page refresh)
   useEffect(() => {
@@ -15,11 +15,9 @@ export default function LocalGame() {
   if (!localGame) return null
 
   return (
-    <div className="min-h-screen">
-      <GameBoard
-        mode="local"
-        onExit={() => { clearLocalGame(); navigate('/') }}
-      />
-    </div>
+    <GameBoard
+      mode="local"
+      onExit={() => { clearLocalGame(); navigate('/') }}
+    />
   )
 }

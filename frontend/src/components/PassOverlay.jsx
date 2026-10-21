@@ -12,6 +12,9 @@ export default function PassOverlay({ playerName, onConfirm }) {
   return (
     <motion.div
       className="fixed inset-0 z-40 flex flex-col items-center justify-center px-6 gap-8 bg-felt-dark/[0.97]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pass-title"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -23,8 +26,8 @@ export default function PassOverlay({ playerName, onConfirm }) {
         transition={{ delay: 0.15 }}
       >
         <div className="text-5xl mb-4" aria-hidden="true">📱</div>
-        <h2 className="text-3xl font-bold mb-2">Pass the device</h2>
-        <p className="text-white/50 text-lg">
+        <h2 id="pass-title" className="text-3xl font-bold mb-2">Pass the device</h2>
+        <p className="text-white/70 text-lg">
           Hand it to <span className="text-white font-semibold">{playerName}</span>
         </p>
       </motion.div>

@@ -1,41 +1,49 @@
 /**
- * Opponent status strip — compact row showing all other players' lives.
+ * Opponent status strip — one chip per other player: lives, knock state,
+ * whose turn it is, and who is out.
  */
 
-export default function OpponentStrip({ players, currentPlayerId, myPlayerId }) {
-  if (!players || players.length === 0) return null
+import Lives from './Lives.jsx'
 
-  const others = Object.entries(players).filter(([id]) => id !== myPlayerId)
+export default function OpponentStrip({ players, currentPlayerId, myPlayerId }) {
+  // `players` is an object keyed by id — the old `players.length` guard was
+  // always undefined, so it never fired.
+  const others = Object.entries(players ?? {}).filter(([id]) => id !== myPlayerId)
+  if (others.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-2 justify-center px-4">
+    <ul className="flex flex-wrap gap-1.5 sm:gap-2 justify-center px-4" aria-label="Opponents">
       {others.map(([id, player]) => {
         const isActive = id === currentPlayerId
+        const out = player.is_eliminated
         return (
-          <div
+          <li
             key={id}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm
-              transition-all duration-300
+            className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs sm:text-sm
+              transition-colors duration-300 border
               ${isActive
-                ? 'bg-gold/20 border border-gold/40 text-gold-light'
-                : 'bg-white/5 border border-white/10 text-white/70'}
-              ${player.is_eliminated ? 'opacity-30 line-through' : ''}
+                ? 'bg-gold/20 border-gold/50 text-gold-light shadow-glow'
+                : 'bg-white/5 border-white/10 text-white/80'}
+              ${out ? 'opacity-50' : ''}
             `}
+            aria-current={isActive ? 'true' : undefined}
           >
-            <span>{player.is_ai ? '🤖' : '👤'}</span>
-            <span className="font-medium">{player.name}</span>
-            <div className="flex gap-0.5">
-              {Array.from({ length: 3 }, (_, i) => (
-                <span
-                  key={i}
-                  className={`life-dot ${i < player.lives ? 'active' : 'lost'}`}
-                />
-              ))}
-            </div>
-            {player.has_knocked && <span className="text-orange-400 text-xs">✊</span>}
-          </div>
+            <span aria-hidden="true">{out ? '💀' : player.is_ai ? '🤖' : '👤'}</span>
+            <span className={`font-medium ${out ? 'line-through' : ''}`}>{player.name}</span>
+            {out ? (
+              <span className="text-xs">Out</span>
+            ) : (
+              <Lives lives={player.lives} />
+            )}
+            {player.has_knocked && (
+              <span className="badge badge-knocked" title="Knocked">Knocked</span>
+            )}
+            {isActive && player.is_ai && (
+              <span className="text-xs text-gold-light/80 animate-pulse">thinking…</span>
+            )}
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }
