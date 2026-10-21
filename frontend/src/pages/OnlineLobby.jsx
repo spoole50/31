@@ -14,7 +14,8 @@ export default function OnlineLobby() {
 
   const handleCreate = async () => {
     clearOnlineError()
-    await createTable(tableName, maxPlayers, false)
+    // Private: joinable only with the invite code, never listed or joinable by id
+    await createTable(tableName, maxPlayers, true)
     navigate('/online/table')
   }
 

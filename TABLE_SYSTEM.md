@@ -7,9 +7,11 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 ## Features
 
 ### Table Management
-- **Create tables** — customisable name, player cap (2–8), public / private, optional password
-- **6-char invite codes** — share a code like `ABC123` to join a private table
-- **Public browsing** — list and join open tables without a code
+- **Create tables** — customisable name, player cap (2–8), optional password
+- **6-char invite codes** — share a code like `ABC123`; the app creates every
+  table as private, so the code is the only way in
+- **Public tables (API only)** — `is_private: false` tables are listed by
+  `GET /api/tables` and joinable by id, but the UI doesn't create or browse them
 - **Host controls** — only the host can start, restart, or add AI players
 - **Status tracking** — waiting → ready → playing → finished
 
@@ -38,7 +40,7 @@ Real-time online multiplayer powered by Socket.IO WebSockets. Players create or 
 
 ### Joining a Table
 1. **Play Online** → enter your name
-2. Either paste an invite code or browse public tables
+2. Paste the invite code the host shared
 
 ### Starting a Game
 1. Wait for at least 2 players (human + AI count)

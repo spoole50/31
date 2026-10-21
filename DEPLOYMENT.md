@@ -391,9 +391,6 @@ workflow**, and watch it build, push, and roll out.
 
 ### Known gaps
 
-- [ ] **Invite codes are not access control.** Tables are created with
-      `is_private: false`, so `GET /api/tables/public` lists them and they can be
-      joined by ID without the code.
 - [ ] **Player ids are bearer credentials.** `join_table` re-attaches any socket
       that names a seated `player_id`, and the table payload lists every
       player's id, so another player at the table could take over a seat.

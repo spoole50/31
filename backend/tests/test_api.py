@@ -211,3 +211,24 @@ def test_local_game_rejects_oversized_input(client, body):
 def test_table_rejects_overlong_name(client):
     r = client.post("/api/tables", json={"host_id": "p_long", "host_name": "x" * 33})
     assert r.status_code == 422
+
+
+# ── Private tables ────────────────────────────────────────────────────────────
+
+def test_private_table_is_hidden_and_needs_the_code(client):
+    created = client.post(
+        "/api/tables",
+        json={"host_id": "p_priv", "host_name": "Host", "is_private": True},
+    ).json()
+    tid, code = created["table_id"], created["invite_code"]
+
+    listed = client.get("/api/tables/public").json()["tables"]
+    assert tid not in {t["table_id"] for t in listed}
+
+    by_id = client.post("/api/tables/join",
+                        json={"player_id": "p_snoop", "player_name": "S", "table_id": tid})
+    assert by_id.status_code == 400
+
+    by_code = client.post("/api/tables/join",
+                          json={"player_id": "p_friend", "player_name": "F", "invite_code": code})
+    assert by_code.status_code == 200
