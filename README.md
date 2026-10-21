@@ -2,7 +2,7 @@
 
 A mobile-first web implementation of the classic card game **31** (also known as Scat or Blitz). Build the highest same-suit hand — a score of 31 wins instantly.
 
-Live at [31.spoole.fyi](https://31.spoole.fyi) · Built by [spoole50](https://github.com/spoole50)
+Live at [31.spoole.dev](https://31.spoole.dev) · Built by [spoole50](https://github.com/spoole50)
 
 ---
 

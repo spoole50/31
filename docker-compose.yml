@@ -9,7 +9,7 @@ services:
     # http://localhost:3000, and state is in-memory by default.
     # Uncomment to test a non-localhost frontend origin:
     # environment:
-    #   - ALLOWED_ORIGINS=https://31.spoole.fyi
+    #   - ALLOWED_ORIGINS=https://31.spoole.dev
     #
     # Uncomment for hot-reload against your working tree:
     # volumes:
