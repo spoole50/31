@@ -205,6 +205,12 @@ class GameState:
         
         # Move to next player
         self.set_current_player(self.get_next_player_id(self.current_player_id))
+
+        # Same rule as discard_card: play coming back round to the knocker ends
+        # the final round. Without this a skipped last turn handed the knocker
+        # another turn instead of scoring the round.
+        if self.phase == GamePhase.FINAL_ROUND and self.current_player_id == self.knocked_player_id:
+            end_round(self)
         return True
 
     # Game logging methods

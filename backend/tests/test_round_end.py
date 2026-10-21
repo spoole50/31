@@ -6,7 +6,7 @@ These drive game_logic directly with rigged hands — reaching a specific round
 outcome through the REST API would depend on the shuffle.
 """
 
-from game_logic import Card, create_new_game, discard_card, end_round
+from game_logic import Card, create_new_game, discard_card, end_round, knock
 from utils.serializers import game_state_to_dict
 
 
@@ -58,3 +58,16 @@ def test_instant_win_costs_everyone_else_a_life_but_not_the_eliminated():
     assert game.players["player_3"].lives == 0
     assert "player_3" not in {r["player_id"] for r in snap["results"]}
 
+
+def test_timing_out_the_last_final_round_turn_ends_the_round():
+    game = create_new_game(["A", "B"])
+    game.set_current_player("player_1")
+    assert knock(game, "player_1")
+    assert game.current_player_id == "player_2"
+
+    # B runs out the clock on the last turn of the final round
+    assert game.handle_turn_timeout(timeout_seconds=0)
+
+    # The round is scored, not handed back to the knocker
+    assert game.last_round["round_number"] == 1
+    assert game.round_number == 2
