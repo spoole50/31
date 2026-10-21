@@ -302,8 +302,11 @@ before the SPA rule** — Amplify applies the first match:
 
 | Source | Target | Type |
 |---|---|---|
-| `https://31.spoole.fyi/<*>` | `https://31.spoole.dev/<*>` | `301` |
+| `https://31.spoole.fyi` | `https://31.spoole.dev` | `301` |
 | `/<*>` | `/index.html` | `404-200` |
+
+> Domain sources must be the bare origin — Amplify appends the path itself.
+> A source like `https://31.spoole.fyi/<*>` is silently ignored.
 
 `ALLOWED_ORIGINS` on App Runner must include `https://31.spoole.dev` (Step 5).
 
