@@ -1,7 +1,0 @@
-# Ignore root package.json for backend deployment
-/package.json
-/package-lock.json
-/node_modules
-/frontend
-/.github
-/public

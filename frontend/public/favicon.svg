@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="31">
+  <rect width="64" height="64" rx="14" fill="#0f2d1e"/>
+  <rect x="12" y="8" width="40" height="48" rx="6" fill="#fafaf8"/>
+  <text x="32" y="41"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="28" font-weight="700"
+        text-anchor="middle" fill="#0f2d1e">31</text>
+  <path d="M18 15.5l2.6 3.4c.5.7.1 1.6-.7 1.6h-3.8c-.8 0-1.2-.9-.7-1.6z" fill="#1a4731"/>
+  <path d="M46 48.5l-2.6-3.4c-.5-.7-.1-1.6.7-1.6h3.8c.8 0 1.2.9.7 1.6z" fill="#dc2626"/>
+</svg>
