@@ -39,7 +39,7 @@ def test_health_reports_version_and_counts(client):
     assert body["status"] == "healthy"
     assert body["version"] == "2.0.0"
     # These keys are what the README documents; keep them stable.
-    for key in ("games", "tables", "connected_players", "redis"):
+    for key in ("games", "tables", "connected_players"):
         assert key in body
 
 

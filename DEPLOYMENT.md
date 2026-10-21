@@ -76,7 +76,7 @@ npm run dev:frontend    # vite on :3000
 **Verify the backend:**
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0,"redis":false}
+# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0}
 ```
 
 ### Running the tests
@@ -260,7 +260,7 @@ Check an existing service with
 
 ```bash
 curl https://xxxxxxxx.us-east-1.awsapprunner.com/api/health
-# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0,"redis":false}
+# {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0}
 ```
 
 Open your Amplify URL and start a local game to confirm end-to-end connectivity.
@@ -393,6 +393,6 @@ workflow**, and watch it build, push, and roll out.
 
 - [ ] A refresh *on your own turn* still skips that turn (the disconnect
       handler skips immediately so the table doesn't stall).
-- [ ] Redis (`REDIS_URL`) for state persistence across redeploys — the store
-      interface exists but no mutation is actually persisted yet.
+- [ ] State doesn't survive a redeploy — games and tables live in process
+      memory only, so a backend deploy ends every game in progress.
 - [ ] CloudWatch alerts on App Runner for error spikes

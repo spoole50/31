@@ -9,7 +9,7 @@ Architecture:
     actions, disconnect detection)
   - Both are mounted into a single ASGI app so they share one port and one
     process
-  - Core state lives in core.store (in-memory, optionally backed by Redis)
+  - Core state lives in core.store and table_logic.table_manager (in memory)
 
 Entry points:
   Local:       uvicorn main:app --reload --port 8000
