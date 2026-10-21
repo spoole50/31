@@ -55,6 +55,7 @@ export default function LocalSetup() {
               <input
                 className="input"
                 placeholder={`Player ${i + 1}`}
+                maxLength={32}
                 value={name}
                 onChange={(e) =>
                   setHumanNames((n) => n.map((v, idx) => (idx === i ? e.target.value : v)))

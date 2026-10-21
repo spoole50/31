@@ -23,8 +23,12 @@ async function api(path, opts = {}) {
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.detail || data.error || 'Request failed')
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    // FastAPI validation errors (422) put a list of {msg, loc} in `detail`
+    const detail = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail
+    throw new Error(detail || data.error || 'Request failed')
+  }
   return data
 }
 

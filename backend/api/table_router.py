@@ -6,11 +6,12 @@ The WebSocket layer (socket_handlers.py) handles real-time events;
 these endpoints handle lobby creation, joining, and control actions.
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from typing import Optional
 
 from table_logic import table_manager, TableStatus, AIDifficulty
+from core.limits import MAX_LIVE_TABLES, ensure_capacity, limit_creates
 from core.socket import sio
 from utils.serializers import table_to_dict
 
@@ -20,17 +21,17 @@ router = APIRouter()
 # ── Request models ────────────────────────────────────────────────────────────
 
 class CreateTableRequest(BaseModel):
-    host_id: str
-    host_name: str
-    table_name: str = "New Game"
+    host_id: str = Field(max_length=64)
+    host_name: str = Field(max_length=32)
+    table_name: str = Field("New Game", max_length=40)
     max_players: int = 8
     is_private: bool = True
     password: Optional[str] = None
 
 
 class JoinTableRequest(BaseModel):
-    player_id: str
-    player_name: str
+    player_id: str = Field(max_length=64)
+    player_name: str = Field(max_length=32)
     invite_code: Optional[str] = None
     table_id: Optional[str] = None
     password: Optional[str] = None
@@ -55,7 +56,7 @@ class RestartGameRequest(BaseModel):
 
 # ── Table lifecycle ───────────────────────────────────────────────────────────
 
-@router.post("/tables", status_code=201)
+@router.post("/tables", status_code=201, dependencies=[Depends(limit_creates)])
 def create_table(req: CreateTableRequest):
     if not req.host_id or not req.host_name:
         raise HTTPException(status_code=400, detail="host_id and host_name are required")
@@ -66,6 +67,8 @@ def create_table(req: CreateTableRequest):
     existing = table_manager.get_player_table(req.host_id)
     if existing:
         raise HTTPException(status_code=400, detail="Player is already in a table")
+
+    ensure_capacity(len(table_manager.tables), MAX_LIVE_TABLES)
 
     table = table_manager.create_table(
         host_id=req.host_id,

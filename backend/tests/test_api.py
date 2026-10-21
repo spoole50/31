@@ -17,10 +17,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
+from core.limits import create_limiter
 
 
 @pytest.fixture()
 def client():
+    # Every TestClient request comes from the same "testclient" host, so reset
+    # the per-IP create limit or later tests would trip it.
+    create_limiter.reset()
     # `with` runs the lifespan, which starts (and cancels) the cleanup task.
     with TestClient(main.fastapi_app) as c:
         yield c
@@ -151,3 +155,59 @@ def test_cors_blocks_unlisted_origin(client):
     # No ACAO header echoed back => the browser blocks the response.
     assert r.headers.get("access-control-allow-origin") is None
     assert "*" not in (r.headers.get("access-control-allow-origin") or "")
+
+
+# ── Abuse limits ──────────────────────────────────────────────────────────────
+
+LOCAL_GAME = {"player_names": ["You"], "num_ai_players": 1}
+
+
+def test_create_rate_limit_returns_429(client):
+    for _ in range(create_limiter.limit):
+        assert client.post("/api/games", json=LOCAL_GAME).status_code == 200
+    r = client.post("/api/games", json=LOCAL_GAME)
+    assert r.status_code == 429
+    assert r.headers.get("retry-after") == "60"
+    # Tables share the same per-IP budget.
+    r = client.post("/api/tables", json={"host_id": "p_rl", "host_name": "RL"})
+    assert r.status_code == 429
+
+
+def test_game_capacity_cap_returns_503(client, monkeypatch):
+    import api.game_router as game_router
+    from core.store import store
+
+    monkeypatch.setattr(game_router, "MAX_LIVE_GAMES", len(store.all_games()))
+    r = client.post("/api/games", json=LOCAL_GAME)
+    assert r.status_code == 503
+
+
+def test_table_capacity_cap_returns_503(client, monkeypatch):
+    import api.table_router as table_router
+    from table_logic import table_manager
+
+    monkeypatch.setattr(table_router, "MAX_LIVE_TABLES", len(table_manager.tables))
+    r = client.post("/api/tables", json={"host_id": "p_cap", "host_name": "Cap"})
+    assert r.status_code == 503
+
+
+@pytest.mark.parametrize("body", [
+    {"player_names": ["Solo"], "num_ai_players": 0},              # 1 player
+    {"player_names": ["A", "B"], "num_ai_players": 7},            # 9 players
+])
+def test_local_game_player_count_bounds(client, body):
+    assert client.post("/api/games", json=body).status_code == 400
+
+
+@pytest.mark.parametrize("body", [
+    {"player_names": ["x" * 33], "num_ai_players": 1},            # name too long
+    {"player_names": ["You"], "num_ai_players": 10_000},          # absurd AI count
+    {"player_names": ["p"] * 9, "num_ai_players": 0},             # too many names
+])
+def test_local_game_rejects_oversized_input(client, body):
+    assert client.post("/api/games", json=body).status_code == 422
+
+
+def test_table_rejects_overlong_name(client):
+    r = client.post("/api/tables", json={"host_id": "p_long", "host_name": "x" * 33})
+    assert r.status_code == 422

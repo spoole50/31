@@ -58,7 +58,7 @@ export default function OnlineLobby() {
         <div className="space-y-4">
           <div>
             <label className="text-sm text-white/60 mb-1 block">Table name</label>
-            <input className="input" value={tableName} onChange={(e) => setTableName(e.target.value)} />
+            <input className="input" maxLength={40} value={tableName} onChange={(e) => setTableName(e.target.value)} />
           </div>
           <div>
             <label className="text-sm text-white/60 mb-1 block">Max players: {maxPlayers}</label>

@@ -65,6 +65,7 @@ export default function MainMenu() {
               <input
                 className="input"
                 placeholder="Your name"
+                maxLength={32}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleOnline()}

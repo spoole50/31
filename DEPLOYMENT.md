@@ -198,6 +198,7 @@ docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/card-game-31-backend:lates
    |---|---|
    | `ALLOWED_ORIGINS` | `https://31.spoole.fyi` |
    | `LOG_LEVEL` | `INFO` (optional; `DEBUG` logs per-turn game events) |
+   | `CREATE_RATE_LIMIT`, `MAX_LIVE_GAMES`, `MAX_LIVE_TABLES` | optional; defaults 10/min per IP, 200, 100 (see `backend/.env.example`) |
 
    > **Required.** CORS is an allowlist, not `*`. Without this the deployed
    > frontend is blocked by the browser and both REST and Socket.IO fail.
@@ -390,8 +391,6 @@ workflow**, and watch it build, push, and roll out.
 
 ### Known gaps
 
-- [ ] **No rate limiting on any route.** Table and game creation are unbounded,
-      so a trivial loop can exhaust the 0.5 GB instance.
 - [ ] **Invite codes are not access control.** Tables are created with
       `is_private: false`, so `GET /api/tables/public` lists them and they can be
       joined by ID without the code.

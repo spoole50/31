@@ -27,6 +27,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import ALLOWED_ORIGINS
+from core.limits import create_limiter
 from core.socket import sio
 from core.store import store
 from api.game_router import router as game_router
@@ -58,6 +59,8 @@ async def _periodic_cleanup():
         await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
         try:
             now = datetime.now()
+
+            create_limiter.prune()
 
             # ── Local (non-table) games ───────────────────────────────────────
             # store only ever holds local games; table games live on the table.
