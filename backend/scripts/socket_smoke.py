@@ -10,6 +10,8 @@ the security-critical behaviours:
      (impersonation), while the real owner's identical action is accepted
   3. a player who drops mid-game can rejoin within the grace period and gets
      the running game back; a player who isn't seated can't attach at all
+  4. join_table needs the seat token, so knowing a player's (public) id is
+     not enough to take over their seat
 
 Usage:
     # start the backend first, e.g. uvicorn main:app --port 8000
@@ -41,11 +43,14 @@ def check(label: str, ok: bool) -> None:
         _failures.append(label)
 
 
-def call(method: str, path: str, data=None):
+def call(method: str, path: str, data=None, token=None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["X-Player-Token"] = token
     req = urllib.request.Request(
         API + path, method=method,
         data=json.dumps(data).encode() if data else None,
-        headers={"Content-Type": "application/json"})
+        headers=headers)
     with urllib.request.urlopen(req) as resp:
         return json.load(resp)
 
@@ -66,10 +71,10 @@ async def main() -> int:
     table = call("POST", "/tables", {
         "host_id": "p_alice", "host_name": "Alice",
         "table_name": "Smoke", "max_players": 4})
-    tid, code = table["table_id"], table["invite_code"]
+    tid, code, alice_tok = table["table_id"], table["invite_code"], table["player_token"]
     print(f"table {tid[:8]}  invite={code}")
-    call("POST", "/tables/join", {
-        "player_id": "p_bob", "player_name": "Bob", "invite_code": code})
+    bob_tok = call("POST", "/tables/join", {
+        "player_id": "p_bob", "player_name": "Bob", "invite_code": code})["player_token"]
 
     a, b = socketio.AsyncClient(), socketio.AsyncClient()
     ev = {"a": [], "b": [], "err": []}
@@ -80,11 +85,13 @@ async def main() -> int:
 
     await a.connect(BASE)
     await b.connect(BASE)
-    await a.emit("join_table", {"table_id": tid, "player_id": "p_alice", "player_name": "Alice"})
-    await b.emit("join_table", {"table_id": tid, "player_id": "p_bob", "player_name": "Bob"})
+    await a.emit("join_table", {"table_id": tid, "player_id": "p_alice",
+                                "player_name": "Alice", "player_token": alice_tok})
+    await b.emit("join_table", {"table_id": tid, "player_id": "p_bob",
+                                "player_name": "Bob", "player_token": bob_tok})
     await asyncio.sleep(0.6)
 
-    call("POST", f"/tables/{tid}/start", {"host_id": "p_alice"})
+    call("POST", f"/tables/{tid}/start", {"host_id": "p_alice"}, token=alice_tok)
     await asyncio.sleep(1.2)
 
     if not ev["a"] or not ev["b"]:
@@ -121,14 +128,15 @@ async def main() -> int:
     await a.disconnect()
     await asyncio.sleep(0.5)
     # What the frontend does on reload: look up its table, then re-attach.
-    seated = call("GET", "/player/p_alice/table")
+    seated = call("GET", "/player/p_alice/table", token=alice_tok)
     check("disconnected player is still seated during the grace period",
           seated["table_id"] == tid)
     a2 = socketio.AsyncClient()
     rejoined = []
     a2.on("game_updated", lambda d: rejoined.append(d))
     await a2.connect(BASE)
-    await a2.emit("join_table", {"table_id": tid, "player_id": "p_alice", "player_name": "Alice"})
+    await a2.emit("join_table", {"table_id": tid, "player_id": "p_alice",
+                                 "player_name": "Alice", "player_token": alice_tok})
     await asyncio.sleep(0.8)
     check("rejoining socket receives the running game",
           bool(rejoined) and rejoined[-1]["your_player_id"] == ga["your_player_id"])
@@ -143,6 +151,17 @@ async def main() -> int:
     await c.emit("join_table", {"table_id": tid, "player_id": "p_mallory", "player_name": "M"})
     await asyncio.sleep(0.6)
     check("a player who isn't seated can't attach to the table", bool(c_err))
+
+    print("\nseat takeover:")
+    n = len(c_err)
+    await c.emit("join_table", {"table_id": tid, "player_id": "p_bob", "player_name": "Bob"})
+    await asyncio.sleep(0.6)
+    check("join_table naming a seated id without its token is rejected", len(c_err) > n)
+    n = len(c_err)
+    await c.emit("join_table", {"table_id": tid, "player_id": "p_bob",
+                                "player_name": "Bob", "player_token": alice_tok})
+    await asyncio.sleep(0.6)
+    check("another seat's token doesn't work either", len(c_err) > n)
 
     await a2.disconnect()
     await b.disconnect()

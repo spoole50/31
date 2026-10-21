@@ -232,3 +232,78 @@ def test_private_table_is_hidden_and_needs_the_code(client):
     by_code = client.post("/api/tables/join",
                           json={"player_id": "p_friend", "player_name": "F", "invite_code": code})
     assert by_code.status_code == 200
+
+
+# ── Seat tokens: player ids are public, so they must not be credentials ──────
+
+def _seat_two(client, host="p_host", guest="p_guest"):
+    """Create a table and seat a second player; return (table, host_tok, guest_tok)."""
+    created = client.post("/api/tables", json={"host_id": host, "host_name": "Host"}).json()
+    joined = client.post("/api/tables/join", json={
+        "player_id": guest, "player_name": "Guest", "invite_code": created["invite_code"],
+    }).json()
+    return created, created["player_token"], joined["player_token"]
+
+
+def _tok(token):
+    return {"X-Player-Token": token}
+
+
+def test_create_and_join_return_a_private_seat_token(client):
+    table, host_tok, guest_tok = _seat_two(client, "p_t1", "p_t2")
+    assert host_tok and guest_tok and host_tok != guest_tok
+    # The shared table payload never carries anyone's token.
+    public = client.get(f"/api/tables/{table['table_id']}").json()
+    assert "player_token" not in public
+    assert all("token" not in p for p in public["players"])
+
+
+def test_host_actions_need_the_hosts_token(client):
+    table, host_tok, guest_tok = _seat_two(client, "p_h1", "p_g1")
+    url = f"/api/tables/{table['table_id']}/add-ai"
+    body = {"host_id": "p_h1", "difficulty": "easy"}
+    assert client.post(url, json=body).status_code == 403                     # no token
+    assert client.post(url, json=body, headers=_tok(guest_tok)).status_code == 403  # wrong seat
+    assert client.post(url, json=body, headers=_tok(host_tok)).status_code == 200
+
+    start = f"/api/tables/{table['table_id']}/start"
+    assert client.post(start, json={"host_id": "p_h1"}, headers=_tok(guest_tok)).status_code == 403
+    assert client.post(start, json={"host_id": "p_h1"}, headers=_tok(host_tok)).status_code == 200
+
+
+def test_cannot_kick_another_player_without_their_token(client):
+    table, host_tok, guest_tok = _seat_two(client, "p_h2", "p_g2")
+    url = f"/api/tables/{table['table_id']}/leave"
+    r = client.post(url, json={"player_id": "p_g2"}, headers=_tok(host_tok))
+    assert r.status_code == 403
+    assert client.post(url, json={"player_id": "p_g2"}, headers=_tok(guest_tok)).status_code == 200
+
+
+def test_cannot_join_as_a_seated_player(client):
+    table, host_tok, guest_tok = _seat_two(client, "p_h3", "p_g3")
+    hijack = {"player_id": "p_g3", "player_name": "Mallory", "invite_code": table["invite_code"]}
+    assert client.post("/api/tables/join", json=hijack).status_code == 409
+    # The real owner (holding the token) may rejoin; it re-seats them with a
+    # fresh token, and the old one stops working.
+    again = client.post("/api/tables/join", json=hijack, headers=_tok(guest_tok))
+    assert again.status_code == 200
+    new_tok = again.json()["player_token"]
+    assert new_tok != guest_tok
+    assert client.get("/api/player/p_g3/table", headers=_tok(guest_tok)).status_code == 403
+    assert client.get("/api/player/p_g3/table", headers=_tok(new_tok)).status_code == 200
+
+
+def test_player_table_lookup_needs_token(client):
+    _, _, guest_tok = _seat_two(client, "p_h4", "p_g4")
+    assert client.get("/api/player/p_g4/table").status_code == 403
+    assert client.get("/api/player/p_g4/table", headers=_tok(guest_tok)).status_code == 200
+
+
+def test_cors_preflight_allows_the_token_header(client):
+    r = client.options("/api/tables/x/leave", headers={
+        "Origin": "http://localhost:3000",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type,x-player-token",
+    })
+    assert r.status_code == 200
+    assert "x-player-token" in r.headers.get("access-control-allow-headers", "").lower()
