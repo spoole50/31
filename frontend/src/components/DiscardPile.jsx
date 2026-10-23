@@ -53,12 +53,14 @@ export default function DiscardPile({
         <AnimatePresence mode="wait" initial={false}>
           {topCard ? (
             <motion.div
-              key={discardPileLength}
+              // Length alone repeats when a player takes the discard and
+              // throws another, so the new card swapped in with no animation.
+              key={`${discardPileLength}-${topCard.value}${topCard.suit}`}
               className={canDraw ? DRAWABLE : ''}
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
             >
               <Card
                 card={topCard}
