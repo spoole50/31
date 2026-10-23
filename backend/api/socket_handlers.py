@@ -46,6 +46,10 @@ logger = logging.getLogger(__name__)
 # within this window (reconnect / brief network blip) the cleanup is skipped.
 DISCONNECT_GRACE_SECONDS = 30
 
+# Pause before each AI move so the discard animation finishes and players can
+# follow what happened. Keep in step with AI_TURN_DELAY_MS in gameStore.js.
+AI_TURN_DELAY_SECONDS = 1.6
+
 
 # ── Helpers shared across handlers ────────────────────────────────────────────
 
@@ -494,8 +498,8 @@ async def _run_ai_turns_if_needed(table_id: str) -> None:
         if not current or not current.is_ai:
             break
 
-        # Small delay so the frontend can animate each AI move
-        await asyncio.sleep(0.9)
+        # Delay so the frontend can animate each AI move
+        await asyncio.sleep(AI_TURN_DELAY_SECONDS)
 
         success = advanced_ai_turn(game, game.current_player_id)
         await _emit_game_to_table(table)

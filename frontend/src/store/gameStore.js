@@ -34,7 +34,8 @@ async function api(path, opts = {}) {
   return data
 }
 
-const AI_TURN_DELAY_MS = 900
+// Keep in step with AI_TURN_DELAY_SECONDS in backend/api/socket_handlers.py
+const AI_TURN_DELAY_MS = 1600
 const AI_TURN_RETRIES = 3
 
 // ── Store ─────────────────────────────────────────────────────────────────────
