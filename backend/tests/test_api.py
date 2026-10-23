@@ -75,7 +75,11 @@ def test_local_game_full_turn(client):
     # Drive the AI turn and confirm play moves on.
     ai = client.post(f"/api/games/{gid}/ai-turn", json={})
     assert ai.status_code == 200
-    assert ai.json()["current_player_id"] != "ai_1"
+    after = ai.json()
+    # If the AI drew into 31 it won the round instantly, and the round winner
+    # leads the next round, so ai_1 is legitimately current again.
+    assert (after["current_player_id"] != "ai_1"
+            or after["round_number"] > state["round_number"])
 
 
 def test_get_missing_game_is_404(client):
