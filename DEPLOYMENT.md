@@ -5,7 +5,7 @@
 | | URL |
 |---|---|
 | Frontend | https://31.spoole.dev |
-| Backend API | https://xspmedirzf.us-east-1.awsapprunner.com |
+| Backend API | https://api.31.spoole.dev (App Runner default URL: https://xspmedirzf.us-east-1.awsapprunner.com) |
 
 ## Architecture
 
@@ -27,6 +27,13 @@ AWS's suggested replacement is ECS Express Mode (Fargate + an Application Load
 Balancer). For one 0.25 vCPU container the load balancer alone costs more than
 this whole stack, so it is not worth moving to unless App Runner's support
 changes.
+
+**Contingency if App Runner is retired:** move to a Lightsail Nano instance with
+IPv4 (~$5/mo) running the same amd64 image behind Caddy for TLS. That needs no
+code changes and gives real WebSockets. The frontend only knows the backend as
+`api.31.spoole.dev` ([Step 6c](#step-6c--backend-custom-domain-api31spooledev)),
+so cutting over is a DNS change. No frontend rebuild and no CORS change are
+needed.
 
 Two App Runner limits shape how the backend runs:
 
@@ -264,7 +271,7 @@ Check an existing service with
 
    | Key | Value |
    |---|---|
-   | `VITE_API_URL` | `https://xxxxxxxx.us-east-1.awsapprunner.com` |
+   | `VITE_API_URL` | `https://api.31.spoole.dev` (see Step 6c) |
 
    > ⚠️ Vite inlines env vars at **build time**. After setting or changing `VITE_API_URL`
    > you must trigger a new Amplify build (push a commit or click **Redeploy this version**).
@@ -310,10 +317,31 @@ before the SPA rule** — Amplify applies the first match:
 
 `ALLOWED_ORIGINS` on App Runner must include `https://31.spoole.dev` (Step 5).
 
+### Step 6c — Backend custom domain (`api.31.spoole.dev`)
+
+The frontend calls the backend at a name we own, not at the App Runner URL, so
+the backend can move hosts without a frontend rebuild. App Runner issues the
+certificate. The DNS records are added by hand in the `spoole.dev` zone:
+
+```bash
+aws apprunner associate-custom-domain --service-arn "$APPRUNNER_SERVICE_ARN" \
+  --domain-name api.31.spoole.dev --no-enable-www-subdomain
+# Prints DNSTarget. Then read the two ACM validation CNAMEs:
+aws apprunner describe-custom-domains --service-arn "$APPRUNNER_SERVICE_ARN" \
+  --query 'CustomDomains[0].CertificateValidationRecords'
+```
+
+In Route 53, create `api.31.spoole.dev CNAME <DNSTarget>` (TTL 300) and both
+validation CNAMEs. Poll `describe-custom-domains` until `Status` is `active`.
+Keep the validation records: App Runner needs them to renew the certificate.
+Then set `VITE_API_URL=https://api.31.spoole.dev` in Amplify and redeploy.
+CORS is unaffected, because it allowlists the frontend origin, which doesn't
+change.
+
 ### Step 7 — Smoke test
 
 ```bash
-curl https://xxxxxxxx.us-east-1.awsapprunner.com/api/health
+curl https://api.31.spoole.dev/api/health
 # {"status":"healthy","version":"2.0.0","games":0,"tables":0,"connected_players":0}
 ```
 
